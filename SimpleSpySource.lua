@@ -19,6 +19,8 @@ local workspace = workspace
 local table = table
 local math = math
 local coroutine = coroutine
+local string = string
+local lower = string.lower
 local round = math.round
 local tostring = tostring
 local tonumber = tonumber
@@ -29,6 +31,8 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ContentProvider = game:GetService("ContentProvider")
 local TextService = game:GetService("TextService")
+
+local getcustomasset = getsynasset or getcustomasset
 
 local Highlight = (isfile and readfile and isfile("Highlight.lua") and loadstring(readfile("Highlight.lua"))()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
 
@@ -41,15 +45,11 @@ local Background = Create("Frame",{Name = "Background",Parent = SimpleSpy3,Backg
 local LeftPanel = Create("Frame",{Name = "LeftPanel",Parent = Background,BackgroundColor3 = Color3.fromRGB(53, 52, 55),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 19),Size = UDim2.new(0, 131, 0, 249)})
 local LogList = Create("ScrollingFrame",{Name = "LogList",Parent = LeftPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 9),Size = UDim2.new(0, 131, 0, 232),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
 local UIListLayout = Create("UIListLayout",{Parent = LogList,HorizontalAlignment = Enum.HorizontalAlignment.Center,SortOrder = Enum.SortOrder.LayoutOrder})
-local RemoteTemplate = Create("Frame",{Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
-local ColorBar = Instance.new("Frame")
-local Text = Instance.new("TextLabel")
-local Button = Instance.new("TextButton")
 local RightPanel = Instance.new("Frame")
 local CodeBox = Instance.new("Frame")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local UIGridLayout = Instance.new("UIGridLayout")
-local FunctionTemplate = Instance.new("Frame")
+local FunctionTemplate = Create("Frame",{Name = "FunctionTemplate",Parent = ScrollingFrame,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 23)})
 local ColorBar_2 = Instance.new("Frame")
 local Text_2 = Instance.new("TextLabel")
 local Button_2 = Instance.new("TextButton")
@@ -65,41 +65,6 @@ local ToolTip = Instance.new("Frame")
 local TextLabel = Instance.new("TextLabel")
 
 --Properties:
-
-ColorBar.Name = "ColorBar"
-ColorBar.Parent = RemoteTemplate
-ColorBar.BackgroundColor3 = Color3.fromRGB(255, 242, 0)
-ColorBar.BorderSizePixel = 0
-ColorBar.Position = UDim2.new(0, 0, 0, 1)
-ColorBar.Size = UDim2.new(0, 7, 0, 18)
-ColorBar.ZIndex = 2
-
-Text.Name = "Text"
-Text.Parent = RemoteTemplate
-Text.BackgroundColor3 = Color3.new(1, 1, 1)
-Text.BackgroundTransparency = 1
-Text.Position = UDim2.new(0, 12, 0, 1)
-Text.Size = UDim2.new(0, 105, 0, 18)
-Text.ZIndex = 2
-Text.Font = Enum.Font.SourceSans
-Text.Text = "TEXT"
-Text.TextColor3 = Color3.new(1, 1, 1)
-Text.TextSize = 14
-Text.TextXAlignment = Enum.TextXAlignment.Left
-
-Button.Name = "Button"
-Button.Parent = RemoteTemplate
-Button.BackgroundColor3 = Color3.new(0, 0, 0)
-Button.BackgroundTransparency = 0.75
-Button.BorderColor3 = Color3.new(1, 1, 1)
-Button.Position = UDim2.new(0, 0, 0, 1)
-Button.Size = UDim2.new(0, 117, 0, 18)
-Button.AutoButtonColor = false
-Button.Font = Enum.Font.SourceSans
-Button.Text = ""
-Button.TextColor3 = Color3.new(0, 0, 0)
-Button.TextSize = 14
-
 RightPanel.Name = "RightPanel"
 RightPanel.Parent = Background
 RightPanel.BackgroundColor3 = Color3.fromRGB(37, 36, 38)
@@ -127,12 +92,6 @@ UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIGridLayout.CellPadding = UDim2.new(0, 0, 0, 0)
 UIGridLayout.CellSize = UDim2.new(0, 94, 0, 27)
-
-FunctionTemplate.Name = "FunctionTemplate"
-FunctionTemplate.Parent = ScrollingFrame
-FunctionTemplate.BackgroundColor3 = Color3.new(1, 1, 1)
-FunctionTemplate.BackgroundTransparency = 1
-FunctionTemplate.Size = UDim2.new(0, 117, 0, 23)
 
 ColorBar_2.Name = "ColorBar"
 ColorBar_2.Parent = FunctionTemplate
@@ -351,7 +310,14 @@ if identifyexecutor then
     end
 end
 
--- functions
+if makefolder and isfolder then
+    if not isfolder("SimpleSpy") then
+        makefolder("SimpleSpy")
+    end
+    if not isfolder("SimpleSpy//Assets") then
+        makefolder("SimpleSpy//Assets")
+    end
+end
 
 --- Converts arguments to a string and generates code that calls the specified method with them, recommended to be used in conjunction with ValueToString (method must be a string, e.g. `game:FindService("ReplicatedStorage").Remote:FireServer`)
 --- @param method string
@@ -1030,19 +996,17 @@ end
 --- @param function_info string
 --- @param blocked any
 function newRemote(type, name, args, remote, function_info, blocked, src)
-    local remoteFrame = RemoteTemplate:Clone()
-    remoteFrame.Text.Text = name
-    remoteFrame.Text.TextTruncate = Enum.TextTruncate.AtEnd
-    remoteFrame.ColorBar.BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245)
-    local id = Instance.new("IntValue")
-    id.Name = "ID"
-    id.Value = #logs + 1
-    id.Parent = remoteFrame
+    local RemoteTemplate = Create("Frame",{Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
+    local ColorBar = Create("Frame",{Name = "ColorBar",Parent = RemoteTemplate,BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 7, 0, 18),ZIndex = 2})
+    local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
+    local Button = Create("TextButton",{Name = "Button",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.75,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 117, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
+
+    local id = Create("IntValue",{Name = "ID",Value = #logs + 1,Parent = RemoteTemplate})
     local log = {
         Name = name,
         Function = function_info,
         Remote = remote,
-        Log = remoteFrame,
+        Log = RemoteTemplate,
         Blocked = blocked,
         Source = src,
         GenScript = "-- Generating, please wait... (click to reload)\n-- (If this message persists, the remote args are likely extremely long)"
@@ -1054,16 +1018,16 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
             logs[#logs].GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING THE SERVER BY SIMPLESPY\n\n" .. logs[#logs].GenScript
         end
     end)
-    local connect = remoteFrame.Button.MouseButton1Click:Connect(function()
-        eventSelect(remoteFrame)
+    local connect = Button.MouseButton1Click:Connect(function()
+        eventSelect(RemoteTemplate)
     end)
     if layoutOrderNum < 1 then
         layoutOrderNum = 999999999
     end
-    remoteFrame.LayoutOrder = layoutOrderNum
+    RemoteTemplate.LayoutOrder = layoutOrderNum
     layoutOrderNum = layoutOrderNum - 1
-    remoteFrame.Parent = LogList
-    table.insert(remoteLogs, 1, {connect, remoteFrame})
+    RemoteTemplate.Parent = LogList
+    table.insert(remoteLogs, 1, {connect, RemoteTemplate})
     clean()
     updateRemoteCanvas()
 end
@@ -1306,7 +1270,7 @@ function v2v(t)
         if type(i) == "string" and i:match("^[%a_]+[%w_]*$") then
             ret = ret .. "local " .. i .. " = " .. v2s(v, nil, nil, i, true) .. "\n"
         elseif tostring(i):match("^[%a_]+[%w_]*$") then
-            ret = ret .. "local " .. tostring(i):lower() .. "_" .. tostring(count) .. " = " .. v2s(v, nil, nil, tostring(i):lower() .. "_" .. tostring(count), true) .. "\n"
+            ret = ret .. "local " .. lower(tostring(i)) .. "_" .. tostring(count) .. " = " .. v2s(v, nil, nil, lower(tostring(i)) .. "_" .. tostring(count), true) .. "\n"
         else
             ret = ret .. "local " .. type(v) .. "_" .. tostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. tostring(count), true) .. "\n"
         end
@@ -1412,8 +1376,8 @@ function f2s(f)
             end
         end
     end
-    if funcEnabled and debug.getinfo(f).name:match("^[%a_]+[%w_]*$") then
-        return ("function() %s end"):format(debug.getinfo(f).name)
+    if funcEnabled and getinfo(f).name:match("^[%a_]+[%w_]*$") then
+        return ("function() %s end"):format(getinfo(f).name)
     end
     return ("function() %s end"):format(tostring(f))
 end
@@ -1447,7 +1411,7 @@ function i2p(i)
         while true do
             if parent and parent.Parent == game then
                 if game:FindService(parent.ClassName) then
-                    if parent.ClassName:lower() == "workspace" then
+                    if lower(parent.ClassName) == "workspace" then
                         return "workspace" .. out
                     else
                         return 'game:GetService("' .. parent.ClassName .. '")' .. out
@@ -1689,7 +1653,7 @@ end
 function remoteHandler(hookfunction, methodName, remote, args, func, calling)
     if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
         if funcEnabled and not calling then
-            _, calling = pcall(getScriptFromSrc, debug.getinfo(func).source)
+            _, calling = pcall(getScriptFromSrc, getinfo(func).source)
         end
         coroutine.wrap(function()
             if remoteSignals[remote] then
@@ -1728,9 +1692,9 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
                 src = calling
             end
         end
-        if methodName:lower() == "fireserver" then
+        if lower(methodName) == "fireserver" then
             newRemote("event", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src)
-        elseif methodName:lower() == "invokeserver" then
+        elseif lower(methodName) == "invokeserver" then
             newRemote("function", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src)
         end
     end
@@ -1740,7 +1704,7 @@ local newindex = function(remote,property,...)
     if hookmetamethodtoggle then return originalindex(remote,property,...) end
     if not logcheckcaller and checkcaller() then return originalindex(remote,property,...) end
     local args = {...}
-    local methodName = property:lower()
+    local methodName = lower(property)
     if methodtypes[methodName] then
         if not (blacklist[remote] or blacklist[remote.Name]) then
             local func
@@ -1764,7 +1728,7 @@ local newnamecall = newcclosure(function(remote, ...)
     if hookmetamethodtoggle then return originalnamecall(remote,...) end
     if not logcheckcaller and checkcaller() then return originalnamecall(remote, ...) end
     local args = {...}
-    local methodName = getnamecallmethod():lower()
+    local methodName = lower(getnamecallmethod())
     if methodtypes[methodName] then
         if not (blacklist[remote] or blacklist[remote.Name]) then
             local func
@@ -1833,7 +1797,6 @@ if not getgenv().SimpleSpyExecuted then
         ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
         -- if gethui then funcEnabled = false end
         onToggleButtonClick()
-        RemoteTemplate.Parent = nil
         FunctionTemplate.Parent = nil
         codebox = Highlight.new(CodeBox)
         coroutine.wrap(function()
@@ -2072,7 +2035,7 @@ newButton("Decompile",
                 decompiledsource = decompile(selected.Source)
             end)
             if suc then
-                if decompiledsource:lower():find("script") and SimpleSpy:ValueToString(selected.Source) then
+                if lower(decompiledsource):find("script") and SimpleSpy:ValueToString(selected.Source) then
                     decompiledsource = ("local script = %s\n%s"):format(SimpleSpy:ValueToString(selected.Source),decompiledsource)
                 end
                 codebox:setRaw(decompiledsource:gsub("-- Decompiled with the Synapse X Luau decompiler.",""))
