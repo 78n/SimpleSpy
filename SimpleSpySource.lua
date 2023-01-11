@@ -18,12 +18,16 @@ local game = game
 local workspace = workspace
 local table = table
 local math = math
+local task = task
 local coroutine = coroutine
 local string = string
 local lower = string.lower
 local round = math.round
+local wrap = coroutine.wrap
+local CurrentCamera = workspace.CurrentCamera
 local tostring = tostring
 local tonumber = tonumber
+local delay = task.delay
 
 local Players = game:FindService("Players")
 local RunService = game:FindService("RunService")
@@ -49,10 +53,6 @@ local RightPanel = Instance.new("Frame")
 local CodeBox = Instance.new("Frame")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local UIGridLayout = Instance.new("UIGridLayout")
-local FunctionTemplate = Create("Frame",{Name = "FunctionTemplate",Parent = ScrollingFrame,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 23)})
-local ColorBar_2 = Instance.new("Frame")
-local Text_2 = Instance.new("TextLabel")
-local Button_2 = Instance.new("TextButton")
 local TopBar = Instance.new("Frame")
 local Simple = Instance.new("TextButton")
 local CloseButton = Instance.new("TextButton")
@@ -92,41 +92,6 @@ UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIGridLayout.CellPadding = UDim2.new(0, 0, 0, 0)
 UIGridLayout.CellSize = UDim2.new(0, 94, 0, 27)
-
-ColorBar_2.Name = "ColorBar"
-ColorBar_2.Parent = FunctionTemplate
-ColorBar_2.BackgroundColor3 = Color3.new(1, 1, 1)
-ColorBar_2.BorderSizePixel = 0
-ColorBar_2.Position = UDim2.new(0, 7, 0, 10)
-ColorBar_2.Size = UDim2.new(0, 7, 0, 18)
-ColorBar_2.ZIndex = 3
-
-Text_2.Name = "Text"
-Text_2.Parent = FunctionTemplate
-Text_2.BackgroundColor3 = Color3.new(1, 1, 1)
-Text_2.BackgroundTransparency = 1
-Text_2.Position = UDim2.new(0, 19, 0, 10)
-Text_2.Size = UDim2.new(0, 69, 0, 18)
-Text_2.ZIndex = 2
-Text_2.Font = Enum.Font.SourceSans
-Text_2.Text = "TEXT"
-Text_2.TextColor3 = Color3.new(1, 1, 1)
-Text_2.TextSize = 14
-Text_2.TextStrokeColor3 = Color3.new(0.145098, 0.141176, 0.14902)
-Text_2.TextXAlignment = Enum.TextXAlignment.Left
-
-Button_2.Name = "Button"
-Button_2.Parent = FunctionTemplate
-Button_2.BackgroundColor3 = Color3.new(0, 0, 0)
-Button_2.BackgroundTransparency = 0.69999998807907
-Button_2.BorderColor3 = Color3.new(1, 1, 1)
-Button_2.Position = UDim2.new(0, 7, 0, 10)
-Button_2.Size = UDim2.new(0, 80, 0, 18)
-Button_2.AutoButtonColor = false
-Button_2.Font = Enum.Font.SourceSans
-Button_2.Text = ""
-Button_2.TextColor3 = Color3.new(0, 0, 0)
-Button_2.TextSize = 14
 
 TopBar.Name = "TopBar"
 TopBar.Parent = Background
@@ -418,7 +383,7 @@ function newSignal()
         end,
         Fire = function(self, ...)
             for _, f in next, connected do
-                coroutine.wrap(f)(...)
+                wrap(f)(...)
             end
         end
     }
@@ -491,14 +456,14 @@ end
 
 --- Reconnects bringBackOnResize if the current viewport changes and also connects it initially
 function connectResize()
-    local lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
+    local lastCam = CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
     workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
         lastCam:Disconnect()
-        if workspace.CurrentCamera then
+        if CurrentCamera then
             if typelastCam == 'Connection' then
                 lastCam:Disconnect()
             end
-            lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
+            lastCam = CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
         end
     end)
 end
@@ -513,7 +478,7 @@ function bringBackOnResize()
     end
     local currentX = Background.AbsolutePosition.X
     local currentY = Background.AbsolutePosition.Y
-    local viewportSize = workspace.CurrentCamera.ViewportSize
+    local viewportSize = CurrentCamera.ViewportSize
     if (currentX < 0) or (currentX > (viewportSize.X - (sideClosed and 131 or Background.AbsoluteSize.X))) then
         if currentX < 0 then
             currentX = 0
@@ -539,39 +504,37 @@ function onBarInput(input)
         local mainPos = Background.AbsolutePosition
         local offset = mainPos - lastPos
         local currentPos = offset + lastPos
-        RunService.BindToRenderStep(RunService, "drag", 1,
-            function()
-                local newPos = UserInputService.GetMouseLocation(UserInputService)
-                if newPos ~= lastPos then
-                    local currentX = (offset + newPos).X
-                    local currentY = (offset + newPos).Y
-                    local viewportSize = workspace.CurrentCamera.ViewportSize
-                    if (currentX < 0 and currentX < currentPos.X) or (currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)) and currentX > currentPos.X) then
-                        if currentX < 0 then
-                            currentX = 0
-                        else
-                            currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
-                        end
+        connections["drag"] = RunService.RenderStepped:Connect(function()
+            local newPos = UserInputService.GetMouseLocation(UserInputService)
+            if newPos ~= lastPos then
+                local currentX = (offset + newPos).X
+                local currentY = (offset + newPos).Y
+                local viewportSize = CurrentCamera.ViewportSize
+                if (currentX < 0 and currentX < currentPos.X) or (currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)) and currentX > currentPos.X) then
+                    if currentX < 0 then
+                        currentX = 0
+                    else
+                        currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
                     end
-                    if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36) and currentY > currentPos.Y) then
-                        if currentY < 0 then
-                            currentY = 0
-                        else
-                            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
-                        end
-                    end
-                    currentPos = Vector2.new(currentX, currentY)
-                    lastPos = newPos
-                    TweenService.Create(TweenService, Background, TweenInfo.new(0.1), {Position = UDim2.new(0, currentPos.X, 0, currentPos.Y)}):Play()
                 end
+                if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36) and currentY > currentPos.Y) then
+                    if currentY < 0 then
+                        currentY = 0
+                    else
+                        currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
+                    end
+                end
+                currentPos = Vector2.new(currentX, currentY)
+                lastPos = newPos
+                TweenService.Create(TweenService, Background, TweenInfo.new(0.1), {Position = UDim2.new(0, currentPos.X, 0, currentPos.Y)}):Play()
+            end
                 -- if input.UserInputState ~= Enum.UserInputState.Begin then
                 --     RunService.UnbindFromRenderStep(RunService, "drag")
                 -- end
-            end
-        )
+        end)
         table.insert(connections, UserInputService.InputEnded:Connect(function(inputE)
             if input == inputE then
-                RunService:UnbindFromRenderStep("drag")
+                connections["drag"]:Disconnect()
             end
         end))
     end
@@ -582,7 +545,7 @@ function fadeOut(elements)
     local data = {}
     for _, v in next, elements do
         if typeof(v) == "Instance" and v:IsA("GuiObject") and v.Visible then
-            coroutine.wrap(function()
+            wrap(function()
                 data[v] = {
                     BackgroundTransparency = v.BackgroundTransparency
                 }
@@ -594,18 +557,19 @@ function fadeOut(elements)
                     data[v].ImageTransparency = v.ImageTransparency
                     TweenService:Create(v, TweenInfo.new(0.5), {ImageTransparency = 1}):Play()
                 end
-                wait(0.5)
-                v.Visible = false
-                for i, x in next, data[v] do
-                    v[i] = x
-                end
-                data[v] = true
+                delay(0.5,function()
+                    v.Visible = false
+                    for i, x in next, data[v] do
+                        v[i] = x
+                    end
+                    data[v] = true
+                end)
             end)()
         end
     end
     return function()
         for i, _ in next, data do
-            coroutine.wrap(function()
+            wrap(function()
                 local properties = {
                     BackgroundTransparency = i.BackgroundTransparency
                 }
@@ -746,30 +710,26 @@ function isInDragRange(p)
 end
 
 --- Called when mouse enters SimpleSpy
+local customCursor = Create("ImageLabel",{Parent = SimpleSpy3,Visible = false,Size = UDim2.fromOffset(200, 200),ZIndex = 1e5,BackgroundTransparency = 1,Image = "",Parent = SimpleSpy3})
 function mouseEntered()
-    local customCursor = Instance.new("ImageLabel")
-    customCursor.Size = UDim2.fromOffset(200, 200)
-    customCursor.ZIndex = 1e5
-    customCursor.BackgroundTransparency = 1
-    customCursor.Image = ""
-    customCursor.Parent = SimpleSpy3
-    UserInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.ForceHide
-    RunService:BindToRenderStep("SIMPLESPY_CURSOR", 1, function()
+    connections["SIMPLESPY_CURSOR"] = RunService.RenderStepped:Connect(function()
+        UserInputService.MouseIconEnabled = not mouseInGui
+        customCursor.Visible = mouseInGui
         if mouseInGui and getgenv().SimpleSpyExecuted then
             local mouseLocation = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
             customCursor.Position = UDim2.fromOffset(mouseLocation.X - customCursor.AbsoluteSize.X / 2, mouseLocation.Y - customCursor.AbsoluteSize.Y / 2)
             local inRange, type = isInResizeRange(mouseLocation)
-            if inRange and not sideClosed and not closed then
-                customCursor.Image = type == 'B' and "rbxassetid://6065821980" or type == 'X' and "rbxassetid://6065821086" or type == 'Y' and "rbxassetid://6065821596"
-            elseif inRange and not closed and type == 'Y' or type == 'B' then
-                customCursor.Image = "rbxassetid://6065821596"
+            if inRange and not closed then
+                if not sideClosed then
+                    customCursor.Image = type == 'B' and "rbxassetid://6065821980" or type == 'X' and "rbxassetid://6065821086" or type == 'Y' and "rbxassetid://6065821596"
+                elseif type == 'Y' or type == 'B' then
+                    customCursor.Image = "rbxassetid://6065821596"
+                end
             elseif customCursor.Image ~= "rbxassetid://6065775281" then
                 customCursor.Image = "rbxassetid://6065775281"
             end
         else
-            UserInputService.OverrideMouseIconBehavior = Enum.OverrideMouseIconBehavior.None
-            customCursor:Destroy()
-            RunService:UnbindFromRenderStep("SIMPLESPY_CURSOR")
+            connections["SIMPLESPY_CURSOR"]:Disconnect()
         end
     end)
 end
@@ -818,7 +778,7 @@ end
 --- Ensures size is within screensize limitations
 function validateSize()
     local x, y = Background.AbsoluteSize.X, Background.AbsoluteSize.Y
-    local screenSize = workspace.CurrentCamera.ViewportSize
+    local screenSize = CurrentCamera.ViewportSize
     if x + Background.AbsolutePosition.X > screenSize.X then
         if screenSize.X - Background.AbsolutePosition.X >= 450 then
             x = screenSize.X - Background.AbsolutePosition.X
@@ -844,7 +804,7 @@ function backgroundUserInput(input)
         local lastPos = UserInputService:GetMouseLocation()
         local offset = Background.AbsoluteSize - lastPos
         local currentPos = lastPos + offset
-        RunService:BindToRenderStep("SIMPLESPY_RESIZE", 1, function()
+        connections["SIMPLESPY_RESIZE"] = RunService.RenderStepped:Connect(function()
             local newPos = UserInputService:GetMouseLocation()
             if newPos ~= lastPos then
                 local currentX = (newPos + offset).X
@@ -868,7 +828,7 @@ function backgroundUserInput(input)
         end)
         table.insert(connections, UserInputService.InputEnded:Connect(function(inputE)
             if input == inputE then
-                RunService:UnbindFromRenderStep("SIMPLESPY_RESIZE")
+                connections["SIMPLESPY_RESIZE"]:Disconnect()
             end
         end))
     elseif isInDragRange(mousePos) then
@@ -923,24 +883,28 @@ end
 --- @param enable boolean
 --- @param text string
 function makeToolTip(enable, text)
-    if enable then
+    if enable and text then
         if ToolTip.Visible then
             ToolTip.Visible = false
-            RunService:UnbindFromRenderStep("ToolTip")
+            connections["ToolTip"]:Disconnect()
         end
         local first = true
-        RunService:BindToRenderStep("ToolTip", 1, function()
+        connections["ToolTip"] = RunService.RenderStepped:Connect(function()
             local topLeft = Vector2.new(Mouse.X + 20, Mouse.Y + 20)
             local bottomRight = topLeft + ToolTip.AbsoluteSize
+            local ViewportSize = CurrentCamera.ViewportSize
+            local ViewportSizeX = ViewportSize.X
+            local ViewportSizeY = ViewportSize.Y
+
             if topLeft.X < 0 then
                 topLeft = Vector2.new(0, topLeft.Y)
-            elseif bottomRight.X > workspace.CurrentCamera.ViewportSize.X then
-                topLeft = Vector2.new(workspace.CurrentCamera.ViewportSize.X - ToolTip.AbsoluteSize.X, topLeft.Y)
+            elseif bottomRight.X > ViewportSizeX then
+                topLeft = Vector2.new(ViewportSizeX - ToolTip.AbsoluteSize.X, topLeft.Y)
             end
             if topLeft.Y < 0 then
                 topLeft = Vector2.new(topLeft.X, 0)
-            elseif bottomRight.Y > workspace.CurrentCamera.ViewportSize.Y - 35 then
-                topLeft = Vector2.new(topLeft.X, workspace.CurrentCamera.ViewportSize.Y - ToolTip.AbsoluteSize.Y - 35)
+            elseif bottomRight.Y > ViewportSizeY - 35 then
+                topLeft = Vector2.new(topLeft.X, ViewportSizeY - ToolTip.AbsoluteSize.Y - 35)
             end
             if topLeft.X <= Mouse.X and topLeft.Y <= Mouse.Y then
                 topLeft = Vector2.new(Mouse.X - ToolTip.AbsoluteSize.X - 2, Mouse.Y - ToolTip.AbsoluteSize.Y - 2)
@@ -959,7 +923,7 @@ function makeToolTip(enable, text)
     else
         if ToolTip.Visible then
             ToolTip.Visible = false
-            RunService:UnbindFromRenderStep("ToolTip")
+            connections["ToolTip"]:Disconnect()
         end
     end
 end
@@ -969,22 +933,24 @@ end
 ---@param description function
 ---@param onClick function
 function newButton(name, description, onClick)
-    local button = FunctionTemplate:Clone()
-    local btnButton = button:WaitForChild("Button")
-    button.Text.Text = name
-    btnButton.MouseEnter:Connect(function()
+    local FunctionTemplate = Create("Frame",{Name = "FunctionTemplate",Parent = ScrollingFrame,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 23)})
+    local ColorBar = Create("Frame",{Name = "ColorBar",Parent = FunctionTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BorderSizePixel = 0,Position = UDim2.new(0, 7, 0, 10),Size = UDim2.new(0, 7, 0, 18),ZIndex = 3})
+    local Text = Create("TextLabel",{Text = name,Name = "Text",Parent = FunctionTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 19, 0, 10),Size = UDim2.new(0, 69, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextStrokeColor3 = Color3.new(0.145098, 0.141176, 0.14902),TextXAlignment = Enum.TextXAlignment.Left})
+    local Button = Create("TextButton",{Name = "Button",Parent = FunctionTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.69999998807907,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 7, 0, 10),Size = UDim2.new(0, 80, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
+
+    Button.MouseEnter:Connect(function()
         makeToolTip(true, description())
     end)
-    btnButton.MouseLeave:Connect(function()
+    Button.MouseLeave:Connect(function()
         makeToolTip(false)
     end)
-    button.AncestryChanged:Connect(function()
+    FunctionTemplate.AncestryChanged:Connect(function()
         makeToolTip(false)
     end)
-    button.Button.MouseButton1Click:Connect(function(...)
-        onClick(button, ...)
+    Button.MouseButton1Click:Connect(function(...)
+        onClick(FunctionTemplate, ...)
     end)
-    button.Parent = ScrollingFrame
+    FunctionTemplate.Parent = ScrollingFrame
     updateFunctionCanvas()
 end
 
@@ -1504,20 +1470,22 @@ function formatstr(s, indentation)
 end
 
 --- Adds \'s to the text as a replacement to whitespace chars and other things because string.format can't yayeet
+
+local function isFinished(tableinquestion)
+    for _, v in next, tableinquestion do
+        if coroutine.status(v) == "running" then
+            return false
+        end
+    end
+    return true
+end
+
 function handlespecials(s, indentation)
     local i = 0
     local n = 1
     local coroutines = {}
     local coroutineFunc = function(i, r)
         s = s:sub(0, i - 1) .. r .. s:sub(i + 1, -1)
-    end
-    local function isFinished()
-        for _, v in next, coroutines do
-            if coroutine.status(v) == "running" then
-                return false
-            end
-        end
-        return true
     end
     repeat
         i = i + 1
@@ -1555,7 +1523,7 @@ function handlespecials(s, indentation)
             end
         end
     until char == "" or i > (getgenv().SimpleSpyMaxStringSize or 10000)
-    while not isFinished() do
+    while not isFinished(coroutines) do
         RunService.Heartbeat:Wait()
     end
     if i > (getgenv().SimpleSpyMaxStringSize or 10000) then
@@ -1655,7 +1623,7 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
         if funcEnabled and not calling then
             _, calling = pcall(getScriptFromSrc, getinfo(func).source)
         end
-        coroutine.wrap(function()
+        wrap(function()
             if remoteSignals[remote] then
                 remoteSignals[remote]:Fire(args)
             end
@@ -1713,7 +1681,7 @@ local newindex = function(remote,property,...)
                 func = getinfo(getinfolevel).func-- or funcInfo
                 calling = (getcallingscript and getcallingscript()) or nil
             end
-            coroutine.wrap(function()
+            wrap(function()
                 schedule(remoteHandler, false, methodName, remote, args, func, calling)
             end)()
         end
@@ -1737,7 +1705,7 @@ local newnamecall = newcclosure(function(remote, ...)
                 func = getinfo(getinfolevel).func-- or funcInfo
                 calling = getcallingscript() or nil
             end
-            coroutine.wrap(function()
+            wrap(function()
                 schedule(remoteHandler, false, methodName, remote, args, func, calling)
             end)()
         end
@@ -1772,12 +1740,13 @@ function shutdown()
         schedulerconnect:Disconnect()
     end
     for _, connection in next, connections do
-        coroutine.wrap(function()
+        wrap(function()
             connection:Disconnect()
         end)()
     end
     hookmetamethodtoggle = true
     SimpleSpy3:Destroy()
+    UserInputService.MouseIconEnabled = true
     getgenv().SimpleSpyExecuted = false
 end
 
@@ -1797,10 +1766,10 @@ if not getgenv().SimpleSpyExecuted then
         ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
         -- if gethui then funcEnabled = false end
         onToggleButtonClick()
-        FunctionTemplate.Parent = nil
         codebox = Highlight.new(CodeBox)
-        coroutine.wrap(function()
-            codebox:setRaw(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua") or "")
+        wrap(function()
+            local suc,err = pcall(game.HttpGet,game,"https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua")
+            codebox:setRaw((suc and err) or "")
         end)()
         getgenv().SimpleSpy = SimpleSpy
         getgenv().getNil = function(name,class)
@@ -1823,9 +1792,8 @@ if not getgenv().SimpleSpyExecuted then
         table.insert(connections, UserInputService.InputBegan:Connect(backgroundUserInput))
         connectResize()
         SimpleSpy3.Enabled = true
-        coroutine.wrap(function()
-            wait(1)
-            onToggleButtonUnhover()
+        wrap(function()
+            delay(1,onToggleButtonUnhover)
         end)()
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
@@ -1847,6 +1815,10 @@ if not getgenv().SimpleSpyExecuted then
 else
     SimpleSpy3:Destroy()
     return
+end
+
+function SimpleSpy:newButton(name, description, onClick)
+    return newButton(name, description, onClick)
 end
 
 ----- ADD ONS ----- (easily add or remove additonal functionality to the RemoteSpy!)
