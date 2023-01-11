@@ -1,4 +1,7 @@
 Update Logs:
-Patched an env takeover method (ACE)
-Added a SimpleSpy and Assets folder (doesnt do anything yet)
-Rewrote remote button system
+Updated V3rmillion thread with Contact methods
+Rewrote mouseEntered
+Converted all BindToRenderStep's to RenderStepped connections
+
+Extra Info:
+Wish engo a happy birthday
