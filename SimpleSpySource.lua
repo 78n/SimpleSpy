@@ -2,6 +2,13 @@ if getgenv().SimpleSpyExecuted and type(getgenv().SimpleSpyShutdown) == "functio
     getgenv().SimpleSpyShutdown()
 end
 
+local configs = {
+    logcheckcaller = false,
+    autoblock = false,
+    funcEnabled = true,
+
+}
+
 local function Create(instance, properties, children)
     local obj = Instance.new(instance)
 
@@ -243,12 +250,8 @@ local p
 local getnilrequired = false
 
 -- autoblock variables
-local autoblock = false
 local history = {}
 local excluding = {}
-
--- function info variables
-local funcEnabled = true
 
 -- remote hooking/connecting api variables
 local remoteSignals = {}
@@ -258,7 +261,7 @@ local mouseInGui = false
 
 -- handy array of RBXScriptConnections to disconnect on shutdown
 local connections = {}
-local logcheckcaller = false
+local DecompiledScripts = {}
 local hookmetamethodtoggle = true
 
 local methodtypes = {
@@ -977,6 +980,9 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
         Source = src,
         GenScript = "-- Generating, please wait... (click to reload)\n-- (If this message persists, the remote args are likely extremely long)"
     }
+    if not DecompiledScripts[src] then
+        DecompiledScripts[src] = nil
+    end
     logs[#logs + 1] = log
     schedule(function()
         log.GenScript = genScript(remote, args)
@@ -1342,7 +1348,7 @@ function f2s(f)
             end
         end
     end
-    if funcEnabled and getinfo(f).name:match("^[%a_]+[%w_]*$") then
+    if configs.funcEnabled and getinfo(f).name:match("^[%a_]+[%w_]*$") then
         return ("function() %s end"):format(getinfo(f).name)
     end
     return ("function() %s end"):format(tostring(f))
@@ -1620,7 +1626,7 @@ end
 --- Handles remote logs
 function remoteHandler(hookfunction, methodName, remote, args, func, calling)
     if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-        if funcEnabled and not calling then
+        if configs.funcEnabled and not calling then
             _, calling = pcall(getScriptFromSrc, getinfo(func).source)
         end
         wrap(function()
@@ -1628,7 +1634,7 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
                 remoteSignals[remote]:Fire(args)
             end
         end)()
-        if autoblock then
+        if configs.autoblock then
             if excluding[remote] then
                 return
             end
@@ -1670,14 +1676,14 @@ end
 
 local newindex = function(remote,property,...)
     if hookmetamethodtoggle then return originalindex(remote,property,...) end
-    if not logcheckcaller and checkcaller() then return originalindex(remote,property,...) end
+    if not configs.logcheckcaller and checkcaller() then return originalindex(remote,property,...) end
     local args = {...}
     local methodName = lower(property)
     if methodtypes[methodName] then
         if not (blacklist[remote] or blacklist[remote.Name]) then
             local func
             local calling
-            if funcEnabled then
+            if configs.funcEnabled then
                 func = getinfo(getinfolevel).func-- or funcInfo
                 calling = (getcallingscript and getcallingscript()) or nil
             end
@@ -1694,14 +1700,14 @@ end
 
 local newnamecall = newcclosure(function(remote, ...)
     if hookmetamethodtoggle then return originalnamecall(remote,...) end
-    if not logcheckcaller and checkcaller() then return originalnamecall(remote, ...) end
+    if not configs.logcheckcaller and checkcaller() then return originalnamecall(remote, ...) end
     local args = {...}
     local methodName = lower(getnamecallmethod())
     if methodtypes[methodName] then
         if not (blacklist[remote] or blacklist[remote.Name]) then
             local func
             local calling
-            if funcEnabled then
+            if configs.funcEnabled then
                 func = getinfo(getinfolevel).func-- or funcInfo
                 calling = getcallingscript() or nil
             end
@@ -1764,7 +1770,7 @@ if not getgenv().SimpleSpyExecuted then
         end
         getgenv().SimpleSpyShutdown = shutdown
         ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
-        -- if gethui then funcEnabled = false end
+        -- if gethui then configs.funcEnabled = false end
         onToggleButtonClick()
         codebox = Highlight.new(CodeBox)
         wrap(function()
@@ -1872,11 +1878,11 @@ newButton(
     function()
         local orText = "Click to execute code"
         TextLabel.Text = "Executing..."
-        local succeeded = pcall(function() return loadstring(codebox:getString())() end)
+        local succeeded,Error = pcall(function() return loadstring(codebox:getString())() end)
         if succeeded then
             TextLabel.Text = "Executed successfully!"
         else
-            TextLabel.Text = "Execution error!"
+            TextLabel.Text = ("Execution error!\n[[%s]]"):format(Error)
         end
     end
 )
@@ -1906,8 +1912,10 @@ newButton(
                     selected.Function = tostring(v2v({functionInfo = selected.Function}))
                 end
                 codebox:setRaw("-- Calling function info\n-- Generated by the SimpleSpy serializer\n\n"..selected.Function)
+                TextLabel.Text = "Done! Function info generated by the SimpleSpy Serializer."
+            else
+                TextLabel.Text = "Error! Selected function was not found."
             end
-            TextLabel.Text = "Done! Function info generated by the SimpleSpy Serializer."
         end
     end
 )
@@ -2000,19 +2008,23 @@ newButton(
 newButton("Decompile",
     function() return "Decompile source script" end,
     function()
-        if selected and selected.Source then
-            codebox:setRaw("--[[Decompiling]]")
-            local decompiledsource
-            local suc,err = pcall(function()
-                decompiledsource = decompile(selected.Source)
-            end)
-            if suc then
-                if lower(decompiledsource):find("script") and SimpleSpy:ValueToString(selected.Source) then
-                    decompiledsource = ("local script = %s\n%s"):format(SimpleSpy:ValueToString(selected.Source),decompiledsource)
+        if selected and selected.Source and decompile then
+            local Source = selected.Source
+            if not DecompiledScripts[Source] then
+                codebox:setRaw("--[[Decompiling]]")
+                local suc,err = pcall(function()
+                    DecompiledScripts[Source] = decompile(Source):gsub("-- Decompiled with the Synapse X Luau decompiler.","")
+                end)
+                if suc then
+                    if lower(DecompiledScripts[Source]):find("script") and v2s(Source) then
+                        DecompiledScripts[Source] = ("local script = %s\n%s"):format(v2s(Source),DecompiledScripts[Source])
+                    end
+                    codebox:setRaw(DecompiledScripts[Source])
+                else
+                    codebox:setRaw(("--[[\nAn error has occured\n%s\n]]"):format(err))
                 end
-                codebox:setRaw(decompiledsource:gsub("-- Decompiled with the Synapse X Luau decompiler.",""))
             else
-                codebox:setRaw(("--[[\nAn error has occured\n%s\n]]"):format(err))
+                codebox:setRaw(DecompiledScripts[Source])
             end
             TextLabel.Text = "Done!"
         else
@@ -2022,29 +2034,29 @@ newButton("Decompile",
 
 newButton(
     "Disable Info",
-    function() return string.format("[%s] Toggle function info (because it can cause lag in some games)", funcEnabled and "ENABLED" or "DISABLED") end,
+    function() return string.format("[%s] Toggle function info (because it can cause lag in some games)", configs.funcEnabled and "ENABLED" or "DISABLED") end,
     function()
-        funcEnabled = not funcEnabled
-        TextLabel.Text = string.format("[%s] Toggle function info (because it can cause lag in some games)", funcEnabled and "ENABLED" or "DISABLED")
+        configs.funcEnabled = not configs.funcEnabled
+        TextLabel.Text = string.format("[%s] Toggle function info (because it can cause lag in some games)", configs.funcEnabled and "ENABLED" or "DISABLED")
     end
 )
 
 newButton(
     "Autoblock",
-    function() return string.format("[%s] [BETA] Intelligently detects and excludes spammy remote calls from logs", autoblock and "ENABLED" or "DISABLED") end,
+    function() return string.format("[%s] [BETA] Intelligently detects and excludes spammy remote calls from logs", configs.autoblock and "ENABLED" or "DISABLED") end,
     function()
-        autoblock = not autoblock
-        TextLabel.Text = string.format("[%s] [BETA] Intelligently detects and excludes spammy remote calls from logs", autoblock and "ENABLED" or "DISABLED")
+        configs.autoblock = not configs.autoblock
+        TextLabel.Text = string.format("[%s] [BETA] Intelligently detects and excludes spammy remote calls from logs", configs.autoblock and "ENABLED" or "DISABLED")
         history = {}
         excluding = {}
     end
 )
 
 newButton("Logcheckcaller",function()
-    return ("[%s] Log remotes fired by the client"):format(logcheckcaller and "ENABLED" or "DISABLED")
+    return ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
     end,
     function()
-        logcheckcaller = not logcheckcaller
-        TextLabel.Text = ("[%s] Log remotes fired by the client"):format(logcheckcaller and "ENABLED" or "DISABLED")
+        configs.logcheckcaller = not configs.logcheckcaller
+        TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
     end
 )
