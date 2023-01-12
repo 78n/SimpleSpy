@@ -5,8 +5,7 @@ end
 local configs = {
     logcheckcaller = false,
     autoblock = false,
-    funcEnabled = true,
-
+    funcEnabled = true
 }
 
 local function Create(instance, properties, children)
