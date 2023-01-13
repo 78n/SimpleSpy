@@ -282,15 +282,15 @@ if identifyexecutor then
     end
 end
 
-local readfileconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
+local cachedconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
 
-if readfileconfigs then
+if cachedconfigs then
     for i,v in next, configs do
-        if readfileconfigs[i] == nil then
-            readfileconfigs[i] = v
+        if cachedconfigs[i] == nil then
+            cachedconfigs[i] = v
         end
     end
-    configs = readfileconfigs
+    configs = cachedconfigs
 end
 
 if makefolder and isfolder and isfile and writefile then
