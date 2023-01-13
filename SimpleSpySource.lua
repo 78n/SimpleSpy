@@ -41,6 +41,7 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ContentProvider = game:GetService("ContentProvider")
 local TextService = game:GetService("TextService")
+local http = game:GetService("HttpService")
 
 local getcustomasset = getsynasset or getcustomasset
 
@@ -259,9 +260,13 @@ local remoteSignals = {}
 local mouseInGui = false
 
 -- handy array of RBXScriptConnections to disconnect on shutdown
+local function jsone(str) return http:JSONEncode(str) end
+local function jsond(str) return http:JSONDecode(str) end
+
 local connections = {}
 local DecompiledScripts = {}
 local hookmetamethodtoggle = true
+local writefiletoggle = false
 
 local methodtypes = {
     ["fireserver"] = true,
@@ -277,13 +282,32 @@ if identifyexecutor then
     end
 end
 
-if makefolder and isfolder then
+local readfileconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
+
+if readfileconfigs then
+    for i,v in next, configs do
+        if readfileconfigs[i] == nil then
+            readfileconfigs[i] = v
+        end
+    end
+    configs = readfileconfigs
+end
+
+if makefolder and isfolder and isfile and writefile then
     if not isfolder("SimpleSpy") then
         makefolder("SimpleSpy")
     end
     if not isfolder("SimpleSpy//Assets") then
         makefolder("SimpleSpy//Assets")
     end
+    if not isfile("SimpleSpy//Settings.json") then
+        writefile("SimpleSpy//Settings.json",jsone(configs))
+    end
+    wrap(function()
+        repeat wait(6)
+            writefile("SimpleSpy//Settings.json",jsone(configs))
+        until not writefiletoggle
+    end)()
 end
 
 --- Converts arguments to a string and generates code that calls the specified method with them, recommended to be used in conjunction with ValueToString (method must be a string, e.g. `game:FindService("ReplicatedStorage").Remote:FireServer`)
@@ -952,7 +976,6 @@ function newButton(name, description, onClick)
     Button.MouseButton1Click:Connect(function(...)
         onClick(FunctionTemplate, ...)
     end)
-    FunctionTemplate.Parent = ScrollingFrame
     updateFunctionCanvas()
 end
 
@@ -1753,6 +1776,7 @@ function shutdown()
     SimpleSpy3:Destroy()
     UserInputService.MouseIconEnabled = true
     getgenv().SimpleSpyExecuted = false
+    writefiletoggle = false
 end
 
 -- main
@@ -1812,6 +1836,7 @@ if not getgenv().SimpleSpyExecuted then
     end)
     if succeeded then
         getgenv().SimpleSpyExecuted = true
+        writefiletoggle = true
     else
         warn("An erorr has occured\n" .. tostring(err))
         SimpleSpy3:Destroy()
