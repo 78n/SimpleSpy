@@ -35,8 +35,8 @@ local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
 
-local Players = game:FindService("Players")
-local RunService = game:FindService("RunService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ContentProvider = game:GetService("ContentProvider")
@@ -310,7 +310,7 @@ if makefolder and isfolder and isfile and writefile then
     end)()
 end
 
---- Converts arguments to a string and generates code that calls the specified method with them, recommended to be used in conjunction with ValueToString (method must be a string, e.g. `game:FindService("ReplicatedStorage").Remote:FireServer`)
+--- Converts arguments to a string and generates code that calls the specified method with them, recommended to be used in conjunction with ValueToString (method must be a string, e.g. `game:GetService("ReplicatedStorage").Remote:FireServer`)
 --- @param method string
 --- @param args any[]
 --- @return string
@@ -1002,7 +1002,7 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
         Source = src,
         GenScript = "-- Generating, please wait... (click to reload)\n-- (If this message persists, the remote args are likely extremely long)"
     }
-    if not DecompiledScripts[src] then
+    if src and not DecompiledScripts[src] then
         DecompiledScripts[src] = nil
     end
     logs[#logs + 1] = log
@@ -1370,8 +1370,11 @@ function f2s(f)
             end
         end
     end
-    if configs.funcEnabled and getinfo(f).name:match("^[%a_]+[%w_]*$") then
-        return ("function() %s end"):format(getinfo(f).name)
+    if configs.funcEnabled then
+        local funcinfo = getinfo(f)
+        if funcinfo and funcinfo.name and funcinfo.name:match("^[%a_]+[%w_]*$") then
+            return ("function() %s end"):format(funcinfo.name)
+        end
     end
     return ("function() %s end"):format(tostring(f))
 end
@@ -1388,7 +1391,7 @@ function i2p(i)
         while true do
             if parent and parent == player.Character then
                 if player == Players.LocalPlayer then
-                    return 'game:FindService("Players").LocalPlayer.Character' .. out
+                    return 'game:GetService("Players").LocalPlayer.Character' .. out
                 else
                     return i2p(player) .. ".Character" .. out
                 end
@@ -1404,7 +1407,7 @@ function i2p(i)
     elseif parent ~= game then
         while true do
             if parent and parent.Parent == game then
-                if game:FindService(parent.ClassName) then
+                if game:GetService(parent.ClassName) then
                     if lower(parent.ClassName) == "workspace" then
                         return "workspace" .. out
                     else
@@ -1675,7 +1678,7 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
             end
             history[remote].lastCall = tick()
         end
-        local functionInfoStr
+        local functionInfoStr = "--Function Info is disabled"
         local src
         if func and islclosure(func) then
             functionInfoStr = {
@@ -1698,7 +1701,7 @@ end
 
 local newindex = function(remote,property,...)
     if hookmetamethodtoggle then return originalindex(remote,property,...) end
-    if not configs.logcheckcaller and checkcaller() then return originalindex(remote,property,...) end
+    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalindex(remote,property,...) end
     local args = {...}
     local methodName = lower(property)
     if methodtypes[methodName] then
@@ -1722,7 +1725,7 @@ end
 
 local newnamecall = newcclosure(function(remote, ...)
     if hookmetamethodtoggle then return originalnamecall(remote,...) end
-    if not configs.logcheckcaller and checkcaller() then return originalnamecall(remote, ...) end
+    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalnamecall(remote, ...) end
     local args = {...}
     local methodName = lower(getnamecallmethod())
     if methodtypes[methodName] then
@@ -1826,7 +1829,7 @@ if not getgenv().SimpleSpyExecuted then
         end)()
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
-        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or game:FindService("CoreGui")
+        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or game:GetService("CoreGui")
         if not Players.LocalPlayer then
             Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         end
