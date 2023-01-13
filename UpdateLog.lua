@@ -1,8 +1,7 @@
 Update Logs:
-Rewrote decompile so it does not decompile scripts that already have been decompiled
-Changed local varibles for buttons (Getting prepared to add config saving)
-When pressing Run Code if there is an error it will now display in the ToolTip
-Made the source code look worse (no problem happy to help)
+Added config saving (I will start work on rewriting the highlight system)
+Made source code EVEN WORSE SOMEHOW
+report any errors to me (Amity) [Read contact information to reach me]
 
 Contact Information:
 Contact me through the SimpleSpy discord (https://discord.com/invite/AWS6ez9) (post in general or something)
@@ -10,4 +9,4 @@ or
 Reply to the v3rmillion thread (https://v3rmillion.net/showthread.php?tid=1198556)
 
 Extra Info:
-Wish engo a happy birthday
+Thank you tip (tip#0145) for helping me testing
