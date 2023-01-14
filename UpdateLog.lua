@@ -9,6 +9,10 @@ Made source code EVEN WORSE SOMEHOW
 report any errors to me (Amity) [Read contact information to reach me]
 ]]
 
+Known Bugs:
+script's fired index style will not have it's arguments logged/generated
+working on fix might have to resort back to hookfunction
+ 
 Contact Information:
 Contact me through the SimpleSpy discord (https://discord.com/invite/AWS6ez9) (post in general or something)
 or
