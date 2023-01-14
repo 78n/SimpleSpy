@@ -10,7 +10,7 @@ report any errors to me (Amity) [Read contact information to reach me]
 ]]
 
 Known Bugs:
-script's fired index style will not have it's arguments logged/generated
+remotes fired index style will not have it's arguments logged/generated
 working on fix might have to resort back to hookfunction
  
 Contact Information:
