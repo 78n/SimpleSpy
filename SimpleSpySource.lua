@@ -5,7 +5,8 @@ end
 local configs = {
     logcheckcaller = false,
     autoblock = false,
-    funcEnabled = true
+    funcEnabled = true,
+    logmetamethod = false
 }
 
 local function Create(instance, properties, children)
@@ -52,6 +53,7 @@ local Highlight = (isfile and readfile and isfile("Highlight.lua") and loadstrin
 -- Instances:
 
 local SimpleSpy3 = Create("ScreenGui",{Name = "SimpleSpy3",ResetOnSpawn = false})
+local Storage = Create("Folder",{Name = "Storage",Parent = SimpleSpy3})
 local Background = Create("Frame",{Name = "Background",Parent = SimpleSpy3,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 500, 0, 200),Size = UDim2.new(0, 450, 0, 268)})
 local LeftPanel = Create("Frame",{Name = "LeftPanel",Parent = Background,BackgroundColor3 = Color3.fromRGB(53, 52, 55),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 19),Size = UDim2.new(0, 131, 0, 249)})
 local LogList = Create("ScrollingFrame",{Name = "LogList",Parent = LeftPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 9),Size = UDim2.new(0, 131, 0, 232),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
@@ -229,7 +231,6 @@ local connectedRemotes = {}
 --- True = hookfunction, false = namecall
 local toggle = false
 local originalnamecall
-local originalindex
 --- used to prevent recursives
 local prevTables = {}
 --- holds logs (for deletion)
@@ -265,8 +266,12 @@ local function jsond(str) return http:JSONDecode(str) end
 
 local connections = {}
 local DecompiledScripts = {}
-local hookmetamethodtoggle = true
 local writefiletoggle = false
+
+local remoteEvent = Instance.new("RemoteEvent",Storage)
+local remoteFunction = Instance.new("RemoteFunction",Storage)
+local originalEvent = remoteEvent.FireServer
+local originalFunction = remoteFunction.InvokeServer
 
 local methodtypes = {
     ["fireserver"] = true,
@@ -1649,7 +1654,7 @@ function taskscheduler()
 end
 
 --- Handles remote logs
-function remoteHandler(hookfunction, methodName, remote, args, func, calling)
+function remoteHandler(hookfunction, methodName, remote, args, func, calling,metamethod)
     if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
         if configs.funcEnabled and not calling then
             _, calling = pcall(getScriptFromSrc, getinfo(func).source)
@@ -1686,7 +1691,11 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
                 constants = getconstants(func),
                 upvalues = getupvalues(func)
             }
-            --functionInfoStr = v2v{functionInfo = functionInfo}
+
+            if configs.logmetamethod then
+                functionInfoStr["metamethod"] = metamethod
+            end
+
             if type(calling) == "userdata" then
                 src = calling
             end
@@ -1699,11 +1708,10 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling)
     end
 end
 
-local newindex = function(remote,property,...)
-    if hookmetamethodtoggle then return originalindex(remote,property,...) end
-    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalindex(remote,property,...) end
+local newindex = function(method,originalfunction,remote,...)
+    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalfunction(remote,...) end
     local args = {...}
-    local methodName = lower(property)
+    local methodName = lower(method)
     if methodtypes[methodName] then
         if not (blacklist[remote] or blacklist[remote.Name]) then
             local func
@@ -1713,18 +1721,17 @@ local newindex = function(remote,property,...)
                 calling = (getcallingscript and getcallingscript()) or nil
             end
             wrap(function()
-                schedule(remoteHandler, false, methodName, remote, args, func, calling)
+                schedule(remoteHandler, false, methodName, remote, args, func, calling,"__index")
             end)()
         end
         if typeof(remote) == "Instance" and (blocklist[remote] or blocklist[remote.Name]) then
             return
         end
     end
-    return originalindex(remote,property,...)
+    return originalfunction(remote,...)
 end
 
 local newnamecall = newcclosure(function(remote, ...)
-    if hookmetamethodtoggle then return originalnamecall(remote,...) end
     if not configs.logcheckcaller and checkcaller and checkcaller() then return originalnamecall(remote, ...) end
     local args = {...}
     local methodName = lower(getnamecallmethod())
@@ -1737,7 +1744,7 @@ local newnamecall = newcclosure(function(remote, ...)
                 calling = getcallingscript() or nil
             end
             wrap(function()
-                schedule(remoteHandler, false, methodName, remote, args, func, calling)
+                schedule(remoteHandler, false, methodName, remote, args, func, calling,"__namecall")
             end)()
         end
         if typeof(remote) == "Instance" and (blocklist[remote] or blocklist[remote.Name]) then
@@ -1747,15 +1754,33 @@ local newnamecall = newcclosure(function(remote, ...)
     return originalnamecall(remote, ...)
 end)
 
+local newFireServer = newcclosure(function(...)
+    return newindex("FireServer",originalEvent,...)
+end)
+
+local newInvokeServer = newcclosure(function(...)
+    return newindex("InvokeServer",originalFunction,...)
+end)
+
 --- Toggles on and off the remote spy
 function toggleSpy()
-    hookmetamethodtoggle = not hookmetamethodtoggle
     if not toggle then
-        if not hookmetamethod then
-            warn("SimpleSpy: namecall method not found!\n")
-            onToggleButtonClick()
-            return
+        if hookmetamethod then
+            local oldNamecall = hookmetamethod(game, "__namecall", newnamecall)
+            originalnamecall = originalnamecall or function(...)
+                return oldNamecall(...)
+            end
         end
+        originalEvent = hookfunction(remoteEvent.FireServer, newFireServer)
+        originalFunction = hookfunction(remoteFunction.InvokeServer, newInvokeServer)
+    else
+        if hookmetamethod then
+			if originalnamecall then
+				hookmetamethod(game, "__namecall", originalnamecall)
+			end
+        end
+        hookfunction(remoteEvent.FireServer, originalEvent)
+        hookfunction(remoteFunction.InvokeServer, originalFunction)
     end
 end
 
@@ -1775,7 +1800,11 @@ function shutdown()
             connection:Disconnect()
         end)()
     end
-    hookmetamethodtoggle = true
+    if originalnamecall then
+        hookmetamethod(game, "__namecall", originalnamecall)
+    end
+    hookfunction(remoteEvent.FireServer, originalEvent)
+    hookfunction(remoteFunction.InvokeServer, originalFunction)
     SimpleSpy3:Destroy()
     UserInputService.MouseIconEnabled = true
     getgenv().SimpleSpyExecuted = false
@@ -1787,12 +1816,6 @@ if not getgenv().SimpleSpyExecuted then
     local succeeded, err = pcall(function()
         if not RunService:IsClient() then
             error("SimpleSpy cannot run on the server!")
-        end
-        if not originalnamecall then
-            originalnamecall = hookmetamethod(game,"__namecall",newnamecall)
-        end
-        if not originalindex then
-            originalindex = hookmetamethod(game,"__index",newindex)
         end
         getgenv().SimpleSpyShutdown = shutdown
         ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
@@ -1829,7 +1852,7 @@ if not getgenv().SimpleSpyExecuted then
         end)()
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
-        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or game:GetService("CoreGui")
+        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or game:FindService("CoreGui")
         if not Players.LocalPlayer then
             Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         end
@@ -1841,6 +1864,13 @@ if not getgenv().SimpleSpyExecuted then
         getgenv().SimpleSpyExecuted = true
         writefiletoggle = true
     else
+        if hookmetamethod and original then
+            hookmetamethod(game, "__namecall", original)
+        end
+        if hookfunction then
+            hookfunction(remoteEvent.FireServer, originalEvent)
+            hookfunction(remoteFunction.InvokeServer, originalFunction)
+        end
         warn("An erorr has occured\n" .. tostring(err))
         SimpleSpy3:Destroy()
         return
@@ -1991,12 +2021,11 @@ newButton(
 
 --- clears blacklist
 newButton("Clr Blacklist",
-    function() return "Click to clear the blacklist.\nExcluding a remote makes SimpleSpy ignore it, but it will continue to be usable." end,
-    function()
-        blacklist = {}
-        TextLabel.Text = "Blacklist cleared!"
-    end
-)
+function() return "Click to clear the blacklist.\nExcluding a remote makes SimpleSpy ignore it, but it will continue to be usable." end,
+function()
+    blacklist = {}
+    TextLabel.Text = "Blacklist cleared!"
+end)
 
 --- Prevents the selected.Log Remote from firing the server (still logged)
 newButton(
@@ -2081,9 +2110,16 @@ newButton(
 
 newButton("Logcheckcaller",function()
     return ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
-    end,
-    function()
-        configs.logcheckcaller = not configs.logcheckcaller
-        TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
-    end
-)
+end,
+function()
+    configs.logcheckcaller = not configs.logcheckcaller
+    TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
+end)
+
+newButton("Log metamethod",function()
+    return ("[%s] Display remote's metamethod in Function Info"):format(configs.logmetamethod and "ENABLED" or "DISABLED")
+end,
+function()
+    configs.logmetamethod = not configs.logmetamethod
+    TextLabel.Text = ("[%s] Display remote's metamethod in Function Info"):format(configs.logmetamethod and "ENABLED" or "DISABLED")
+end)
