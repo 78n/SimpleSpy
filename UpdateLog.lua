@@ -1,5 +1,6 @@
 Update Logs:
-Fixed script's not generating fired index style
+Fixed function info not getting the correct constants (Happened because I used the wrong getinfolevel
+fixed script's not generating fired index style
 if your executor does not support hookmetamethod SimpleSpy will only log remotes fired index style
 Now unhooks hookmetamethod
 Added Log metamethod by default it is set to false (useful when hooking remotes)
