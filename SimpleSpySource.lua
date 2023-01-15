@@ -1717,7 +1717,7 @@ local newindex = function(method,originalfunction,remote,...)
             local func
             local calling
             if configs.funcEnabled then
-                func = getinfo(getinfolevel).func-- or funcInfo
+                func = getinfo(getinfolevel+1).func-- or funcInfo
                 calling = (getcallingscript and getcallingscript()) or nil
             end
             wrap(function()
