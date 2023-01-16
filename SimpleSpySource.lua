@@ -2125,7 +2125,7 @@ function()
 end)
 
 if syn and syn.request then request = syn.request end
-newButton("Discord",function()
+newButton("Join Discord",function()
     return "Joins The Simple Spy Discord"
 end,
 function()
