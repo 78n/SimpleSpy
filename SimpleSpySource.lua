@@ -992,7 +992,10 @@ end
 --- @param function_info string
 --- @param blocked any
 function newRemote(type, name, args, remote, function_info, blocked, src)
-    local RemoteTemplate = Create("Frame",{Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
+    if layoutOrderNum < 1 then
+        layoutOrderNum = 999999999
+    end
+    local RemoteTemplate = Create("Frame",{LayoutOrder = layoutOrderNum,Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
     local ColorBar = Create("Frame",{Name = "ColorBar",Parent = RemoteTemplate,BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 7, 0, 18),ZIndex = 2})
     local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
     local Button = Create("TextButton",{Name = "Button",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.75,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 117, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
@@ -1005,27 +1008,23 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
         Log = RemoteTemplate,
         Blocked = blocked,
         Source = src,
-        GenScript = "-- Generating, please wait... (click to reload)\n-- (If this message persists, the remote args are likely extremely long)"
+        GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
     }
     if src and not DecompiledScripts[src] then
         DecompiledScripts[src] = nil
     end
     logs[#logs + 1] = log
-    schedule(function()
-        log.GenScript = genScript(remote, args)
-        if blocked then
-            logs[#logs].GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING THE SERVER BY SIMPLESPY\n\n" .. logs[#logs].GenScript
-        end
-    end)
     local connect = Button.MouseButton1Click:Connect(function()
         eventSelect(RemoteTemplate)
+        log.GenScript = genScript(remote, args)
+        if blocked then
+            logs[#logs].GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING TO THE SERVER BY SIMPLESPY\n\n" .. logs[#logs].GenScript
+        end
+        if selected == log and RemoteTemplate then
+            eventSelect(RemoteTemplate)
+        end
     end)
-    if layoutOrderNum < 1 then
-        layoutOrderNum = 999999999
-    end
-    RemoteTemplate.LayoutOrder = layoutOrderNum
-    layoutOrderNum = layoutOrderNum - 1
-    RemoteTemplate.Parent = LogList
+    layoutOrderNum -= 1
     table.insert(remoteLogs, 1, {connect, RemoteTemplate})
     clean()
     updateRemoteCanvas()
