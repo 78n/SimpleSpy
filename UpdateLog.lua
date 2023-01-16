@@ -9,4 +9,5 @@ or
 Reply to the v3rmillion thread (https://v3rmillion.net/showthread.php?tid=1198556)
 
 Extra Info:
-Thank you tip (tip#0145) for helping me test last update
+If there are any errors report them to me (Amity)
+if there are any errors with the new script generation blame it on tip (tip#0145)
