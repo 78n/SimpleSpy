@@ -1,10 +1,7 @@
 Update Logs:
-Fixed function info not getting the correct constants (Happened because I used the wrong getinfolevel
-fixed script's not generating fired index style
-if your executor does not support hookmetamethod SimpleSpy will only log remotes fired index style
-Now unhooks hookmetamethod
-Added Log metamethod by default it is set to false (useful when hooking remotes)
-Made the source look slightly cleaner :O
+Rewrote the way script Simple Spy generates scripts
+To get more in detail with ^^^ I made it so that the script is only generated if the remote is selected
+This should improve the over all stability of Simple Spy AND generation speed
  
 Contact Information:
 Contact me through the SimpleSpy discord (https://discord.com/invite/AWS6ez9) (post in general or something)
