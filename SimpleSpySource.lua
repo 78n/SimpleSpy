@@ -37,13 +37,27 @@ local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local ContentProvider = game:GetService("ContentProvider")
-local TextService = game:GetService("TextService")
-local http = game:GetService("HttpService")
+local function SafeInstance(instace)
+    if cloneref then
+        return cloneref(instace)
+    end
+    return instace
+end
+
+local function SafeGetService(service)
+    if cloneref then
+        return cloneref(game:GetService(service))
+    end
+    return game:GetService(service)
+end
+
+local Players = SafeGetService("Players")
+local RunService = SafeGetService("RunService")
+local UserInputService = SafeGetService("UserInputService")
+local TweenService = SafeGetService("TweenService")
+local ContentProvider = SafeGetService("ContentProvider")
+local TextService = SafeGetService("TextService")
+local http = SafeGetService("HttpService")
 
 local getcustomasset = getsynasset or getcustomasset
 
@@ -117,7 +131,7 @@ Simple.BackgroundTransparency = 1
 Simple.Position = UDim2.new(0, 5, 0, 0)
 Simple.Size = UDim2.new(0, 57, 0, 18)
 Simple.Font = Enum.Font.SourceSansBold
-Simple.Text = "SimpleSpy"
+Simple.Text =  "SimpleSpy"
 Simple.TextColor3 = Color3.new(1, 1, 1)
 Simple.TextSize = 14
 Simple.TextXAlignment = Enum.TextXAlignment.Left
@@ -231,7 +245,6 @@ local getNil = false
 local connectedRemotes = {}
 --- True = hookfunction, false = namecall
 local toggle = false
-local originalnamecall
 --- used to prevent recursives
 local prevTables = {}
 --- holds logs (for deletion)
@@ -268,6 +281,7 @@ local function jsond(str) return http:JSONDecode(str) end
 local connections = {}
 local DecompiledScripts = {}
 local writefiletoggle = false
+local originalnamecall
 
 local remoteEvent = Instance.new("RemoteEvent",Storage)
 local remoteFunction = Instance.new("RemoteFunction",Storage)
@@ -1044,7 +1058,7 @@ function genScript(remote, args)
             if
                 not pcall(
                     function()
-                        for i, v in pairs(args) do
+                        for i, v in next, args do
                             if type(i) ~= "Instance" and type(i) ~= "userdata" then
                                 gen = gen .. "\n    [object] = "
                             elseif type(i) == "string" then
@@ -1072,7 +1086,7 @@ function genScript(remote, args)
             end
         end
         if not remote:IsDescendantOf(game) and not getnilrequired then
-            gen = "function getNil(name,class) for _,v in pairs(getnilinstances())do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
+            gen = "function getNil(name,class) for _,v in next, getnilinstances()do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
         end
         if remote:IsA("RemoteEvent") then
             gen = gen .. v2s(remote) .. ":FireServer(unpack(args))"
@@ -1222,7 +1236,7 @@ local typeofv2sfunctions = {
         return t2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     end,
     Instance = function(v)
-        return i2p(v)
+        return i2p(SafeInstance(v))
     end,
     userdata = function(v)
         return "newproxy(true)"
@@ -1415,7 +1429,7 @@ function i2p(i)
     elseif parent ~= game then
         while true do
             if parent and parent.Parent == game then
-                if game:GetService(parent.ClassName) then
+                if SafeGetService(parent.ClassName) then
                     if lower(parent.ClassName) == "workspace" then
                         return "workspace" .. out
                     else
@@ -2135,3 +2149,36 @@ function()
         request({Url = 'http://127.0.0.1:6463/rpc?v=1',Method = 'POST',Headers = {['Content-Type'] = 'application/json', Origin = 'https://discord.com'},Body = http:JSONEncode({cmd = 'INVITE_BROWSER',nonce = http:GenerateGUID(false),args = {code = 'AWS6ez9'}})})
     end
 end)
+
+if configs.supersecretdevtoggle then
+    newButton("Load SSV2.2",function()
+        return "Load's Simple Spy V2.2"
+    end,
+    function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua"))()
+    end)
+    newButton("Load SSV3",function()
+        return "Load's Simple Spy V3"
+    end,
+    function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpySource.lua"))()
+    end)
+    local SuperSecretFolder = Create("Folder",{Parent = SimpleSpy3})
+    local sounds = {}
+    newButton("SUPER SECRET BUTTON",function()
+        return "You dont need a discription you already know what it does"
+    end,
+    function()
+        if #sounds > 0 then
+            for i,v in sounds do
+                i.Volume = 0
+                i:Stop()
+            end
+        end
+        local random = listfiles("Music")
+        local NotSound = Create("Sound",{Parent = SuperSecretFolder,Looped = false,Volume = math.random(1,5),SoundId = getsynasset(random[math.random(1,#random)])})
+        NotSound:Play()
+        sounds[NotSound] = "This is not a sound"  
+    end)
+end
+        
