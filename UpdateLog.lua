@@ -1,5 +1,5 @@
 Update Logs:
-Patched Detection Method
+Patched Detection Method (Thank you https://v3rmillion.net/member.php?action=profile&uid=1397405)
 added a super secret button
 
 Contact Information:
