@@ -1,6 +1,6 @@
 Update Logs:
-Rewrote stuff (i forgor what)
-Added Join Discord Button
+Patched Detection Method
+added a super secret button
 
 Contact Information:
 Contact me through the SimpleSpy discord (https://discord.com/invite/AWS6ez9) (post in general or something)
