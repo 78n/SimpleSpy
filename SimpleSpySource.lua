@@ -10,6 +10,28 @@ local configs = {
     supersecretdevtoggle = false
 }
 
+local game = game
+local workspace = workspace
+local table = table
+local math = math
+local task = task
+local coroutine = coroutine
+local string = string
+local Color3 = Color3
+local Instance = Instance
+local lower = string.lower
+local round = math.round
+local wrap = coroutine.wrap
+local running = coroutine.running
+local resume = coroutine.resume
+local status = coroutine.status
+local yield = coroutine.yield
+local create = coroutine.create
+local CurrentCamera = workspace.CurrentCamera
+local tostring = tostring
+local tonumber = tonumber
+local delay = task.delay
+
 local function Create(instance, properties, children)
     local obj = Instance.new(instance)
 
@@ -21,21 +43,6 @@ local function Create(instance, properties, children)
     end
     return obj;
 end
-
-local game = game
-local workspace = workspace
-local table = table
-local math = math
-local task = task
-local coroutine = coroutine
-local string = string
-local lower = string.lower
-local round = math.round
-local wrap = coroutine.wrap
-local CurrentCamera = workspace.CurrentCamera
-local tostring = tostring
-local tonumber = tonumber
-local delay = task.delay
 
 local function SafeInstance(instace)
     if cloneref then
@@ -51,6 +58,7 @@ local function SafeGetService(service)
     return game:GetService(service)
 end
 
+local CoreGui = SafeGetService("CoreGui")
 local Players = SafeGetService("Players")
 local RunService = SafeGetService("RunService")
 local UserInputService = SafeGetService("UserInputService")
@@ -59,9 +67,34 @@ local ContentProvider = SafeGetService("ContentProvider")
 local TextService = SafeGetService("TextService")
 local http = SafeGetService("HttpService")
 
+local function ErrorPrompt(Message,state)
+    if getrenv then
+        local ErrorPrompt = getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
+        local prompt = ErrorPrompt.new("Default",{HideErrorCode = true})
+        local ErrorStoarge = Create("ScreenGui",{Parent = CoreGui,ResetOnSpawn = false})
+        prompt:setParent(ErrorStoarge)
+        prompt:setErrorTitle("Simple Spy V3 Error")
+        prompt:updateButtons({{
+            Text = "Proceed",
+            Callback = function(...)
+                prompt:_close()
+                ErrorStoarge:Destroy()
+                state = false
+            end,
+            Primary = true
+        }}, 'Default')
+        prompt:_open(Message)
+        if state then
+            repeat task.wait() until not state
+        end
+    else
+        warn(Message)
+    end
+end
+
 local getcustomasset = getsynasset or getcustomasset
 
-local Highlight = (isfile and readfile and isfile("Highlight.lua") and loadstring(readfile("Highlight.lua"))()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
+local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
 
 ---- GENERATED (kinda sorta mostly) BY GUI to LUA ----
 
@@ -417,15 +450,15 @@ function newSignal()
             })
         end,
         Wait = function(self)
-            local thread = coroutine.running()
+            local thread = running()
             local connection
             connection = self:Connect(function()
                 connection:Disconnect()
-                if coroutine.status(thread) == "suspended" then
-                    coroutine.resume(thread)
+                if status(thread) == "suspended" then
+                    resume(thread)
                 end
             end)
-            coroutine.yield()
+            yield()
         end,
         Fire = function(self, ...)
             for _, f in next, connected do
@@ -1015,7 +1048,7 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
     local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
     local Button = Create("TextButton",{Name = "Button",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.75,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 117, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
 
-    local id = Create("IntValue",{Name = "ID",Value = #logs + 1,Parent = RemoteTemplate})
+    --local id = Create("IntValue",{Name = "ID",Value = #logs + 1,Parent = RemoteTemplate})
     local log = {
         Name = name,
         Function = function_info,
@@ -1526,7 +1559,7 @@ end
 
 local function isFinished(tableinquestion)
     for _, v in next, tableinquestion do
-        if coroutine.status(v) == "running" then
+        if status(v) == "running" then
             return false
         end
     end
@@ -1544,26 +1577,26 @@ function handlespecials(s, indentation)
         i = i + 1
         local char = s:sub(i, i)
         if string.byte(char) then
-            local c = coroutine.create(coroutineFunc)
+            local c = create(coroutineFunc)
             table.insert(coroutines, c)
             if char == "\n" then
-                coroutine.resume(c, i, "\\n")
+                resume(c, i, "\\n")
                 -- s = s:sub(0, i - 1) .. "\\n" .. s:sub(i + 1, -1)
                 i = i + 1
             elseif char == "\t" then
-                coroutine.resume(c, i, "\\t")
+                resume(c, i, "\\t")
                 -- s = s:sub(0, i - 1) .. "\\t" .. s:sub(i + 1, -1)
                 i = i + 1
             elseif char == "\\" then
-                coroutine.resume(c, i, "\\\\")
+                resume(c, i, "\\\\")
                 -- s = s:sub(0, i - 1) .. "\\\\" .. s:sub(i + 1, -1)
                 i = i + 1
             elseif char == '"' then
-                coroutine.resume(c, i, "\\\"")
+                resume(c, i, "\\\"")
                 -- s = s:sub(0, i - 1) .. '\\"' .. s:sub(i + 1, -1)
                 i = i + 1
             elseif string.byte(char) > 126 or string.byte(char) < 32 then
-                coroutine.resume(c, i, "\\" .. string.byte(char))
+                resume(c, i, "\\" .. string.byte(char))
                 -- s = s:sub(0, i - 1) .. "\\" .. string.byte(char) .. s:sub(i + 1, -1)
                 i = i + #tostring(string.byte(char))
             end
@@ -1645,11 +1678,11 @@ end
 
 --- yields the current thread until the scheduler gives the ok
 function scheduleWait()
-    local thread = coroutine.running()
+    local thread = running()
     schedule(function()
-        coroutine.resume(thread)
+        resume(thread)
     end)
-    coroutine.yield()
+    yield()
 end
 
 --- the big (well tbh small now) boi task scheduler himself, handles p much anything as quicc as possible
@@ -1838,6 +1871,9 @@ if not getgenv().SimpleSpyExecuted then
         ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
         -- if gethui then configs.funcEnabled = false end
         onToggleButtonClick()
+        if not hookmetamethod then
+            ErrorPrompt("Simple Spy v3 will not function to it's fullest capablity due to your executor not supporting hookmetamethod.",true)
+        end
         codebox = Highlight.new(CodeBox)
         wrap(function()
             local suc,err = pcall(game.HttpGet,game,"https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua")
@@ -1869,7 +1905,7 @@ if not getgenv().SimpleSpyExecuted then
         end)()
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
-        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or game:FindService("CoreGui")
+        SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or CoreGui
         if not Players.LocalPlayer then
             Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
         end
@@ -1888,8 +1924,8 @@ if not getgenv().SimpleSpyExecuted then
             hookfunction(remoteEvent.FireServer, originalEvent)
             hookfunction(remoteFunction.InvokeServer, originalFunction)
         end
-        warn("An erorr has occured\n" .. tostring(err))
         SimpleSpy3:Destroy()
+        ErrorPrompt("An error has occured:\n"..tostring(err))
         return
     end
 else
@@ -1950,13 +1986,17 @@ newButton(
     "Run Code",
     function() return "Click to execute code" end,
     function()
-        TextLabel.Text = "Executing..."
-        local succeeded,Error = pcall(function() return loadstring(codebox:getString())() end)
-        if succeeded then
-            TextLabel.Text = "Executed successfully!"
-        else
-            TextLabel.Text = ("Execution error!\n[[%s]]"):format(Error)
+        if selected and selected.GenScript then
+            TextLabel.Text = "Executing..."
+            local succeeded,Error = pcall(function() return loadstring(selected.GenScript)() end)
+            if succeeded then
+                TextLabel.Text = "Executed successfully!"
+            else
+                TextLabel.Text = ("Execution error!\n[[%s]]"):format(Error)
+            end
+            return
         end
+        TextLabel.Text = "Source not found"
     end
 )
 
