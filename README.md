@@ -2,7 +2,7 @@
 
 SimpleSpy V3 is a penetration testing tool designed to intercept [remote calls](https://developer.roblox.com/en-us/articles/Remote-Functions-and-Events) from the client to the server.
 
-SimpleSpy V3 is designed to be the "default" remote spy and built with minimal bloat, performance, and reliability in mind. You can find SimpleSpy V3 in places such as [Infinite Yield](https://github.com/EdgeIY/infiniteyield) (soon:tm:)
+SimpleSpy V3 is designed to be the "default" remote spy and built with minimal bloat, performance, and reliability in mind. You can find SimpleSpy V3 in places such as [Infinite Yield](https://github.com/EdgeIY/infiniteyield)
 
 ## Features
 - View remotes fired
