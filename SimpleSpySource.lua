@@ -27,7 +27,6 @@ local resume = coroutine.resume
 local status = coroutine.status
 local yield = coroutine.yield
 local create = coroutine.create
-local CurrentCamera = workspace.CurrentCamera
 local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
@@ -535,15 +534,13 @@ end
 
 --- Reconnects bringBackOnResize if the current viewport changes and also connects it initially
 function connectResize()
-    local lastCam = CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
+    local lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
     workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
         lastCam:Disconnect()
-        if CurrentCamera then
-            if typelastCam == 'Connection' then
-                lastCam:Disconnect()
-            end
-            lastCam = CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
+        if typeof(lastCam) == 'Connection' then
+            lastCam:Disconnect()
         end
+        lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
     end)
 end
 
@@ -557,7 +554,7 @@ function bringBackOnResize()
     end
     local currentX = Background.AbsolutePosition.X
     local currentY = Background.AbsolutePosition.Y
-    local viewportSize = CurrentCamera.ViewportSize
+    local viewportSize = workspace.CurrentCamera.ViewportSize
     if (currentX < 0) or (currentX > (viewportSize.X - (sideClosed and 131 or Background.AbsoluteSize.X))) then
         if currentX < 0 then
             currentX = 0
@@ -588,7 +585,7 @@ function onBarInput(input)
             if newPos ~= lastPos then
                 local currentX = (offset + newPos).X
                 local currentY = (offset + newPos).Y
-                local viewportSize = CurrentCamera.ViewportSize
+                local viewportSize = workspace.CurrentCamera.ViewportSize
                 if (currentX < 0 and currentX < currentPos.X) or (currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)) and currentX > currentPos.X) then
                     if currentX < 0 then
                         currentX = 0
@@ -857,7 +854,7 @@ end
 --- Ensures size is within screensize limitations
 function validateSize()
     local x, y = Background.AbsoluteSize.X, Background.AbsoluteSize.Y
-    local screenSize = CurrentCamera.ViewportSize
+    local screenSize = workspace.CurrentCamera.ViewportSize
     if x + Background.AbsolutePosition.X > screenSize.X then
         if screenSize.X - Background.AbsolutePosition.X >= 450 then
             x = screenSize.X - Background.AbsolutePosition.X
@@ -971,7 +968,7 @@ function makeToolTip(enable, text)
         connections["ToolTip"] = RunService.RenderStepped:Connect(function()
             local topLeft = Vector2.new(Mouse.X + 20, Mouse.Y + 20)
             local bottomRight = topLeft + ToolTip.AbsoluteSize
-            local ViewportSize = CurrentCamera.ViewportSize
+            local ViewportSize = workspace.CurrentCamera.ViewportSize
             local ViewportSizeX = ViewportSize.X
             local ViewportSizeY = ViewportSize.Y
 
@@ -1739,7 +1736,7 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling,met
             functionInfoStr = {
                 info = getinfo(func),
                 constants = getconstants(func),
-                upvalues = getupvalues(func)
+                upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
             }
 
             if configs.logmetamethod then
@@ -1906,12 +1903,14 @@ if not getgenv().SimpleSpyExecuted then
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
         SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or CoreGui
-        if not Players.LocalPlayer then
-            Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-        end
-        Mouse = Players.LocalPlayer:GetMouse()
-        oldIcon = Mouse.Icon
-        table.insert(connections, Mouse.Move:Connect(mouseMoved))
+        wrap(function()
+            if not Players.LocalPlayer then
+                Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+            end
+            Mouse = Players.LocalPlayer:GetMouse()
+            oldIcon = Mouse.Icon
+            table.insert(connections, Mouse.Move:Connect(mouseMoved))
+        end)()
     end)
     if succeeded then
         getgenv().SimpleSpyExecuted = true
@@ -2128,8 +2127,9 @@ newButton("Decompile",
                     DecompiledScripts[Source] = decompile(Source):gsub("-- Decompiled with the Synapse X Luau decompiler.","")
                 end)
                 if suc then
-                    if lower(DecompiledScripts[Source]):find("script") and v2s(Source) then
-                        DecompiledScripts[Source] = ("local script = %s\n%s"):format(v2s(Source),DecompiledScripts[Source])
+                    local Sourcev2s = v2s(Source)
+                    if lower(DecompiledScripts[Source]):find("script") and Sourcev2s then
+                        DecompiledScripts[Source] = ("local script = %s\n%s"):format(Sourcev2s,DecompiledScripts[Source])
                     end
                 else
                     return codebox:setRaw(("--[[\nAn error has occured\n%s\n]]"):format(err))
@@ -2204,21 +2204,14 @@ if configs.supersecretdevtoggle then
         loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpySource.lua"))()
     end)
     local SuperSecretFolder = Create("Folder",{Parent = SimpleSpy3})
-    local sounds = {}
     newButton("SUPER SECRET BUTTON",function()
         return "You dont need a discription you already know what it does"
     end,
     function()
-        if #sounds > 0 then
-            for i,v in sounds do
-                i.Volume = 0
-                i:Stop()
-            end
-        end
+        SuperSecretFolder:ClearAllChildren()
         local random = listfiles("Music")
         local NotSound = Create("Sound",{Parent = SuperSecretFolder,Looped = false,Volume = math.random(1,5),SoundId = getsynasset(random[math.random(1,#random)])})
         NotSound:Play()
-        sounds[NotSound] = "This is not a sound"  
     end)
 end
         
