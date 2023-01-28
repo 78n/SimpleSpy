@@ -1,3 +1,8 @@
+Update coming soon I havent forgotten / abandoned this yet
+Expected changes:
+generation changes (WaitForChild)
+run code (using the arguments and not just generated code)
+
 Update Logs:
 Rewrote something with decompile
 fixed an error when Simple Spy was in autoexecute
