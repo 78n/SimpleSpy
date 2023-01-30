@@ -94,7 +94,6 @@ end
 local getcustomasset = getsynasset or getcustomasset
 
 local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
-
 ---- GENERATED (kinda sorta mostly) BY GUI to LUA ----
 
 -- Instances:
@@ -300,9 +299,6 @@ local getnilrequired = false
 local history = {}
 local excluding = {}
 
--- remote hooking/connecting api variables
-local remoteSignals = {}
-
 -- if mouse inside gui
 local mouseInGui = false
 
@@ -323,6 +319,11 @@ local originalFunction = remoteFunction.InvokeServer
 local methodtypes = {
     ["fireserver"] = true,
     ["invokeserver"] = true
+}
+
+local instancetypes = {
+    ["RemoteEvent"] = "FireServer",
+    ["RemoteFunction"] = "InvokeServer"
 }
 
 local getinfolevel = 3
@@ -396,16 +397,6 @@ end
 --- @return string
 function SimpleSpy:ValueToString(value)
     return v2s(value)
-end
-
---- Gets the ScriptSignal for a specified remote being fired
---- @param remote Instance
-function SimpleSpy:GetRemoteFiredSignal(remote)
-    assert(typeof(remote) == "Instance", "Instance expected, got " .. typeof(remote))
-    if not remoteSignals[remote] then
-        remoteSignals[remote] = newSignal()
-    end
-    return remoteSignals[remote]
 end
 
 --- Blocks the specified remote instance/string
@@ -580,37 +571,42 @@ function onBarInput(input)
         local mainPos = Background.AbsolutePosition
         local offset = mainPos - lastPos
         local currentPos = offset + lastPos
-        connections["drag"] = RunService.RenderStepped:Connect(function()
-            local newPos = UserInputService.GetMouseLocation(UserInputService)
-            if newPos ~= lastPos then
-                local currentX = (offset + newPos).X
-                local currentY = (offset + newPos).Y
-                local viewportSize = workspace.CurrentCamera.ViewportSize
-                if (currentX < 0 and currentX < currentPos.X) or (currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)) and currentX > currentPos.X) then
-                    if currentX < 0 then
-                        currentX = 0
-                    else
-                        currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
+        if not connections["drag"] then
+            connections["drag"] = RunService.RenderStepped:Connect(function()
+                local newPos = UserInputService.GetMouseLocation(UserInputService)
+                if newPos ~= lastPos then
+                    local currentX = (offset + newPos).X
+                    local currentY = (offset + newPos).Y
+                    local viewportSize = workspace.CurrentCamera.ViewportSize
+                    if (currentX < 0 and currentX < currentPos.X) or (currentX > (viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)) and currentX > currentPos.X) then
+                        if currentX < 0 then
+                            currentX = 0
+                        else
+                            currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
+                        end
                     end
-                end
-                if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36) and currentY > currentPos.Y) then
-                    if currentY < 0 then
-                        currentY = 0
-                    else
-                        currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
+                    if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36) and currentY > currentPos.Y) then
+                        if currentY < 0 then
+                            currentY = 0
+                        else
+                            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
+                        end
                     end
+                    currentPos = Vector2.new(currentX, currentY)
+                    lastPos = newPos
+                    TweenService.Create(TweenService, Background, TweenInfo.new(0.1), {Position = UDim2.new(0, currentPos.X, 0, currentPos.Y)}):Play()
                 end
-                currentPos = Vector2.new(currentX, currentY)
-                lastPos = newPos
-                TweenService.Create(TweenService, Background, TweenInfo.new(0.1), {Position = UDim2.new(0, currentPos.X, 0, currentPos.Y)}):Play()
-            end
-                -- if input.UserInputState ~= Enum.UserInputState.Begin then
-                --     RunService.UnbindFromRenderStep(RunService, "drag")
-                -- end
-        end)
+                    -- if input.UserInputState ~= Enum.UserInputState.Begin then
+                    --     RunService.UnbindFromRenderStep(RunService, "drag")
+                    -- end
+            end)
+        end
         table.insert(connections, UserInputService.InputEnded:Connect(function(inputE)
             if input == inputE then
-                connections["drag"]:Disconnect()
+                if connections["drag"] then
+                    connections["drag"]:Disconnect()
+                    connections["drag"] = nil
+                end
             end
         end))
     end
@@ -924,9 +920,11 @@ end
 --- Runs on MouseButton1Click of an event frame
 function eventSelect(frame)
     if selected and selected.Log  then
-        task.spawn(function()
-            TweenService:Create(selected.Log.Button, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(0, 0, 0)}):Play()
-        end)
+        if selected.Button then
+            task.spawn(function()
+                TweenService:Create(selected.Button, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(0, 0, 0)}):Play()
+            end)
+        end
         selected = nil
     end
     for _, v in next, logs do
@@ -1050,7 +1048,9 @@ function newRemote(type, name, args, remote, function_info, blocked, src)
         Name = name,
         Function = function_info,
         Remote = remote,
+        args = args,
         Log = RemoteTemplate,
+        Button = Button,
         Blocked = blocked,
         Source = src,
         GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
@@ -1239,6 +1239,9 @@ local ufunctions = {
     end,
     Color3 = function(u)
         return ("Color3.fromRGB(%s, %s, %s)"):format(tostring(round(u.r*255)),tostring(round(u.g*255)),tostring(round(u.b*255)))
+    end,
+    Random = function(u)
+        return "Random.new()"
     end
 }
 
@@ -1266,7 +1269,7 @@ local typeofv2sfunctions = {
         return t2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     end,
     Instance = function(v)
-        return i2p(SafeInstance(v))
+        return i2p(SafeInstance(v),v == Players.LocalPlayer)
     end,
     userdata = function(v)
         return "newproxy(true)"
@@ -1433,7 +1436,7 @@ end
 
 --- instance-to-path
 --- @param i userdata
-function i2p(i)
+function i2p(i,check)
     local player = getplayer(i)
     local parent = i
     local out = ""
@@ -1472,16 +1475,16 @@ function i2p(i)
                         return 'game:FindFirstChild(' .. formatstr(parent.Name) .. ')' .. out
                     end
                 end
-            elseif parent.Parent == nil then
+            elseif not parent.Parent then
                 getnilrequired = true
                 return 'getNil(' .. formatstr(parent.Name) .. ', "' .. parent.ClassName .. '")' .. out
-            elseif parent == Players.LocalPlayer then
+            elseif check then
                 out = ".LocalPlayer" .. out
             else
                 if parent.Name:match("[%a_]+[%w_]*") ~= parent.Name then
-                    out = ':FindFirstChild(' .. formatstr(parent.Name) .. ')' .. out
+                    out = ':WaitForChild(' .. formatstr(parent.Name) .. ')' .. out
                 else
-                    out = "." .. parent.Name .. out
+                    out = ':WaitForChild("' .. parent.Name .. '")'..out
                 end
             end
             parent = parent.Parent
@@ -1688,7 +1691,7 @@ function taskscheduler()
         scheduled = {}
         return
     end
-    if #scheduled > 1000 then
+    if #scheduled > SIMPLESPYCONFIG_MaxRemotes + 100 then
         table.remove(scheduled, #scheduled)
     end
     if #scheduled > 0 then
@@ -1706,11 +1709,6 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling,met
         if configs.funcEnabled and not calling then
             _, calling = pcall(getScriptFromSrc, getinfo(func).source)
         end
-        wrap(function()
-            if remoteSignals[remote] then
-                remoteSignals[remote]:Fire(args)
-            end
-        end)()
         if configs.autoblock then
             if excluding[remote] then
                 return
@@ -1985,13 +1983,16 @@ newButton(
     "Run Code",
     function() return "Click to execute code" end,
     function()
-        if selected and selected.GenScript then
+        if selected and selected.Remote and selected.args then
+            local Remote = selected.Remote
+            local args = selected.args
+
             TextLabel.Text = "Executing..."
-            local succeeded,Error = pcall(function() return loadstring(selected.GenScript)() end)
+            local succeeded,returnvalue = pcall(function() return Remote[instancetypes[Remote.ClassName]](Remote,unpack(args)) end)
             if succeeded then
-                TextLabel.Text = "Executed successfully!"
+                TextLabel.Text = ("Executed successfully!\n%s"):format(v2s(returnvalue))
             else
-                TextLabel.Text = ("Execution error!\n[[%s]]"):format(Error)
+                TextLabel.Text = ("Execution error!\n%s"):format(returnvalue)
             end
             return
         end
