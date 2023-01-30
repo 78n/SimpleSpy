@@ -1,12 +1,10 @@
-Update coming soon I havent forgotten / abandoned this yet
-Expected changes:
-generation changes (WaitForChild)
-run code (using the arguments and not just generated code)
-
 Update Logs:
-Rewrote something with decompile
-fixed an error when Simple Spy was in autoexecute
-Patched detection method (thank you GameGuy)
+Updated generation
+fixed generation not detecting when localplayer was fired (it was because of cloneref)
+changed Run Code to use the arguments the remote was fired with (no longer uses generated code)
+added return values to run code's tooltip
+fixed an error when selecting buttons
+fixed a bug where if you dragged the ui off screen it would be permanatly stuck to your cusor
 
 Contact Information:
 Contact me through the SimpleSpy discord (https://discord.com/invite/AWS6ez9) (post in general or something)
