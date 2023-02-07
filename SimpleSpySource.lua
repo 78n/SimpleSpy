@@ -57,6 +57,21 @@ local function SafeGetService(service)
     return game:GetService(service)
 end
 
+local function Safetostring(userdata)
+	if type(userdata) == "table" or typeof(userdata) == "userdata" then
+		local rawmetatable = getrawmetatable(userdata)
+		local cachedstring = rawmetatable and rawget(rawmetatable, "__tostring")
+
+		if cachedstring then
+			rawset(rawmetatable, "__tostring", nil)
+			local safestring = tostring(userdata)
+			rawset(rawmetatable, "__tostring", cachedstring)
+			return safestring
+		end
+	end
+	return tostring(userdata)
+end
+
 local CoreGui = SafeGetService("CoreGui")
 local Players = SafeGetService("Players")
 local RunService = SafeGetService("RunService")
@@ -411,51 +426,6 @@ end
 function SimpleSpy:ExcludeRemote(remote)
     assert(typeof(remote) == "Instance" or typeof(remote) == "string", "Instance | string expected, got " .. typeof(remote))
     blacklist[remote] = true
-end
-
---- Creates a new ScriptSignal that can be connected to and fired
---- @return table
-function newSignal()
-    local connected = {}
-    return {
-        Connect = function(self, f)
-            assert(connected, "Signal is closed")
-            connected[tostring(f)] = f
-            return setmetatable({
-                Connected = true,
-                Disconnect = function(self)
-                    if not connected then
-                        warn("Signal is already closed")
-                    end
-                    self.Connected = false
-                    connected[tostring(f)] = nil
-                end
-            },
-            {
-                __index = function(self, i)
-                    if i == "Connected" then
-                        return not not connected[tostring(f)]
-                    end
-                end
-            })
-        end,
-        Wait = function(self)
-            local thread = running()
-            local connection
-            connection = self:Connect(function()
-                connection:Disconnect()
-                if status(thread) == "suspended" then
-                    resume(thread)
-                end
-            end)
-            yield()
-        end,
-        Fire = function(self, ...)
-            for _, f in next, connected do
-                wrap(f)(...)
-            end
-        end
-    }
 end
 
 --- Prevents remote spam from causing lag (clears logs after `getgenv().SIMPLESPYCONFIG_MaxRemotes` or 500 remotes)
@@ -876,31 +846,36 @@ function backgroundUserInput(input)
         local lastPos = UserInputService:GetMouseLocation()
         local offset = Background.AbsoluteSize - lastPos
         local currentPos = lastPos + offset
-        connections["SIMPLESPY_RESIZE"] = RunService.RenderStepped:Connect(function()
-            local newPos = UserInputService:GetMouseLocation()
-            if newPos ~= lastPos then
-                local currentX = (newPos + offset).X
-                local currentY = (newPos + offset).Y
-                if currentX < 450 then
-                    currentX = 450
+        if not connections["SIMPLESPY_RESIZE"] then
+            connections["SIMPLESPY_RESIZE"] = RunService.RenderStepped:Connect(function()
+                local newPos = UserInputService:GetMouseLocation()
+                if newPos ~= lastPos then
+                    local currentX = (newPos + offset).X
+                    local currentY = (newPos + offset).Y
+                    if currentX < 450 then
+                        currentX = 450
+                    end
+                    if currentY < 268 then
+                        currentY = 268
+                    end
+                    currentPos = Vector2.new(currentX, currentY)
+                    Background.Size = UDim2.fromOffset((not sideClosed and not closed and (type == "X" or type == "B")) and currentPos.X or Background.AbsoluteSize.X, (--[[(not sideClosed or currentPos.X <= LeftPanel.AbsolutePosition.X + LeftPanel.AbsoluteSize.X) and]] not closed and (type == "Y" or type == "B")) and currentPos.Y or Background.AbsoluteSize.Y)
+                    validateSize()
+                    if sideClosed then
+                        minimizeSize()
+                    else
+                        maximizeSize()
+                    end
+                    lastPos = newPos
                 end
-                if currentY < 268 then
-                    currentY = 268
-                end
-                currentPos = Vector2.new(currentX, currentY)
-                Background.Size = UDim2.fromOffset((not sideClosed and not closed and (type == "X" or type == "B")) and currentPos.X or Background.AbsoluteSize.X, (--[[(not sideClosed or currentPos.X <= LeftPanel.AbsolutePosition.X + LeftPanel.AbsoluteSize.X) and]] not closed and (type == "Y" or type == "B")) and currentPos.Y or Background.AbsoluteSize.Y)
-                validateSize()
-                if sideClosed then
-                    minimizeSize()
-                else
-                    maximizeSize()
-                end
-                lastPos = newPos
-            end
-        end)
+            end)
+        end
         table.insert(connections, UserInputService.InputEnded:Connect(function(inputE)
             if input == inputE then
-                connections["SIMPLESPY_RESIZE"]:Disconnect()
+                if connections["SIMPLESPY_RESIZE"] then
+                    connections["SIMPLESPY_RESIZE"]:Disconnect()
+                    connections["SIMPLESPY_RESIZE"] = nil
+                end
             end
         end))
     elseif isInDragRange(mousePos) then
@@ -1138,28 +1113,21 @@ end
 
 local ufunctions = {
     TweenInfo = function(u)
-        return ("TweenInfo.new(%s, Enum.EasingStyle.%s, Enum.EasingDirection.%s, %s, %s, %s)"):format(tostring(u.Time),tostring(u.EasingStyle),tostring(u.EasingDirection),tostring(u.RepeatCount),tostring(u.Reverses),tostring(u.DelayTime))
+        return ("TweenInfo.new(%s, %s, %s, %s, %s, %s)"):format(u.Time,u.EasingStyle,u.EasingDirection,u.RepeatCount,u.Reverses,u.DelayTime)
     end,
     Ray = function(u)
-        return ("Ray.new(%s, %s)"):format(tostring(u.Origin),tostring(u.Direction))
+        return ("Ray.new(%s, %s)"):format(u.Origin,u.Direction)
     end,
     NumberSequence = function(u)
-        local ret = "NumberSequence.new("
-        for i, v in next, u.KeyPoints do
-            ret = ret .. tostring(v)
-            if i < #u.Keypoints then
-                ret = ret .. ", "
-            end
-        end
-        return ret .. ")"
+        return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
     end,
     DockWidgetPluginGuiInfo = function(u)
-        return ("DockWidgetPluginGuiInfo.new(Enum.InitialDockState%s)"):format(tostring(u))
+        return ("DockWidgetPluginGuiInfo.new(Enum.InitialDockState%s)"):format(Safetostring(u))
     end,
     ColorSequence = function(u)
         local ret = "ColorSequence.new("
         for i, v in next, u.KeyPoints do
-            ret = ret ..("Color3.new(%s)"):format(tostring(v))
+            ret = ret ..("Color3.new(%s)"):format(Safetostring(v))
             if i < #u.Keypoints then
                 ret = ret .. ", "
             end
@@ -1167,10 +1135,10 @@ local ufunctions = {
         return ret .. ")"
     end,
     BrickColor = function(u)
-        return ("BrickColor.new(%s)"):format(tostring(u.Number))
+        return ("BrickColor.new(%s)"):format(u.Number)
     end,
     NumberRange = function(u)
-        return ("NumberRange.new(%s, %s)"):format(tostring(u.Min),tostring(u.Max))
+        return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
     end,
     Region3 = function(u)
         local center = u.CFrame.Position
@@ -1202,43 +1170,43 @@ local ufunctions = {
         return ("Faces.new(%s)"):format(table.concat(faces, ", "))
     end,
     EnumItem = function(u)
-        return tostring(u)
+        return Safetostring(u)
     end,
     Enums = function(u)
         return "Enum"
     end,
     Enum = function(u)
-        return "Enum." .. tostring(u)
+        return "Enum." .. Safetostring(u)
     end,
     RBXScriptSignal = function(u)
         return "nil --[[RBXScriptSignal]]"
     end,
     Vector3 = function(u)
-        return ("Vector3.new(%s, %s, %s)"):format(v2s(u.X), v2s(u.Y), v2s(u.Z))
+        return ("Vector3.new(%s, %s, %s)"):format(Safetostring(u))
     end,
     Vector2 = function(u)
-        return ("Vector2.new(%s, %s)"):format(v2s(u.X), v2s(u.Y))
+        return ("Vector2.new(%s)"):format(Safetostring(u))
     end,
     CFrame = function(u)
-        return ("CFrame.new(%s, %s)"):format(v2s(u.Position), v2s(u.LookVector))
+        return ("CFrame.new(%s)"):format(Safetostring(u))
     end,
     DockWidgetPluginGuiInfo = function(u)
         ("DockWidgetPluginGuiInfo(%s, %s, %s, %s, %s, %s, %s)"):format("Enum.InitialDockState.Right", v2s(u.InitialEnabled), v2s(u.InitialEnabledShouldOverrideRestore), v2s(u.FloatingXSize), v2s(u.FloatingYSize), v2s(u.MinWidth), v2s(u.MinHeight))
     end,
     PathWaypoint = function(u)
-        return ("PathWaypoint.new(%s, %s)"):format(v2s(u.Position), v2s(u.Action))
+        return ("PathWaypoint.new(%s, %s)"):format(u.Position, u.Action)
     end,
     UDim = function(u)
-        return ("UDim.new(%s, %s)"):format(v2s(u.Scale), v2s(u.Offset))
+        return ("UDim.new(%s, %s)"):format(u.Scale, u.Offset)
     end,
     UDim2 = function(u)
-        return ("UDim2.new(%s, %s, %s, %s)"):format(v2s(u.X.Scale), v2s(u.X.Offset), v2s(u.Y.Scale), v2s(u.Y.Offset))
+        return ("UDim2.new(%s, %s)"):format(u.X, u.Y)
     end,
     Rect = function(u)
-        return ("Rect.new(%s, %s)"):format(v2s(u.Min), v2s(u.Max))
+        return ("Rect.new(%s, %s)"):format(u.Min, u.Max)
     end,
     Color3 = function(u)
-        return ("Color3.fromRGB(%s, %s, %s)"):format(tostring(round(u.r*255)),tostring(round(u.g*255)),tostring(round(u.b*255)))
+        return ("Color3.fromRGB(%s, %s, %s)"):format(u.r*255,u.g*255,u.b*255)
     end,
     Random = function(u)
         return "Random.new()"
@@ -1251,13 +1219,13 @@ local typeofv2sfunctions = {
             return "math.huge"
         elseif v == -math.huge then
             return "-math.huge"
-        elseif tostring(v):match("nan") then
+        elseif Safetostring(v):match("nan") then
             return "0/0 --[[NaN]]"
         end
-        return tostring(v)
+        return Safetostring(v)
     end,
     boolean = function(v)
-        return tostring(v)
+        return Safetostring(v)
     end,
     string = function(v,l)
         return formatstr(v, l)
@@ -1315,10 +1283,10 @@ function v2v(t)
     for i, v in next, t do
         if type(i) == "string" and i:match("^[%a_]+[%w_]*$") then
             ret = ret .. "local " .. i .. " = " .. v2s(v, nil, nil, i, true) .. "\n"
-        elseif tostring(i):match("^[%a_]+[%w_]*$") then
-            ret = ret .. "local " .. lower(tostring(i)) .. "_" .. tostring(count) .. " = " .. v2s(v, nil, nil, lower(tostring(i)) .. "_" .. tostring(count), true) .. "\n"
+        elseif Safetostring(i):match("^[%a_]+[%w_]*$") then
+            ret = ret .. "local " .. lower(Safetostring(i)) .. "_" .. Safetostring(count) .. " = " .. v2s(v, nil, nil, lower(Safetostring(i)) .. "_" .. Safetostring(count), true) .. "\n"
         else
-            ret = ret .. "local " .. type(v) .. "_" .. tostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. tostring(count), true) .. "\n"
+            ret = ret .. "local " .. type(v) .. "_" .. Safetostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. Safetostring(count), true) .. "\n"
         end
         count = count + 1
     end
@@ -1365,7 +1333,7 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
     end
     for _, v in next, tables do -- checks if the current table has been serialized before
         if n and rawequal(v, t) then
-            bottomstr = bottomstr .. "\n" .. tostring(n) .. tostring(path) .. " = " .. tostring(n) .. tostring(({v2p(v, p)})[2])
+            bottomstr = bottomstr .. "\n" .. Safetostring(n) .. Safetostring(path) .. " = " .. Safetostring(n) .. Safetostring(({v2p(v, p)})[2])
             return "{} --[[DUPLICATE]]"
         end
     end
@@ -1380,7 +1348,7 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
             break
         end
         if rawequal(k, t) then -- checks if the table being iterated over is being used as an index within itself (yay, lua)
-            bottomstr = bottomstr .. "\n" .. tostring(n) .. tostring(path) .. "[" .. tostring(n) .. tostring(path) .. "]" .. " = " .. (rawequal(v, k) and tostring(n) .. tostring(path) or v2s(v, l, p, n, vtv, k, t, path .. "[" .. tostring(n) .. tostring(path) .. "]", tables))
+            bottomstr = bottomstr .. "\n" .. Safetostring(n) .. Safetostring(path) .. "[" .. Safetostring(n) .. Safetostring(path) .. "]" .. " = " .. (rawequal(v, k) and Safetostring(n) .. Safetostring(path) or v2s(v, l, p, n, vtv, k, t, path .. "[" .. Safetostring(n) .. Safetostring(path) .. "]", tables))
             size -= 1
             continue
         end
@@ -1424,14 +1392,13 @@ function f2s(f)
     end
     if configs.funcEnabled then
         local funcinfo = getinfo(f)
-        if funcinfo then
-            local funcinfoname = funcinfo.name
-            if funcinfoname and funcinfoname:match("^[%a_]+[%w_]*$") then
-                return ("function() %s end"):format(funcinfoname)
-            end
+        local funcinfoname = funcinfo and funcinfo.name
+        
+        if funcinfoname and funcinfoname:match("^[%a_]+[%w_]*$") then
+            return ("function() %s end"):format(funcinfoname)
         end
     end
-    return ("function() %s end"):format(tostring(f))
+    return ("function() %s end"):format(Safetostring(f))
 end
 
 --- instance-to-path
@@ -1598,7 +1565,7 @@ function handlespecials(s, indentation)
             elseif string.byte(char) > 126 or string.byte(char) < 32 then
                 resume(c, i, "\\" .. string.byte(char))
                 -- s = s:sub(0, i - 1) .. "\\" .. string.byte(char) .. s:sub(i + 1, -1)
-                i = i + #tostring(string.byte(char))
+                i = i + #Safetostring(string.byte(char))
             end
             if i >= n * 100 then
                 local extra = string.format('" ..\n%s"', string.rep(" ", indentation + indent))
@@ -1733,7 +1700,7 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling,met
         if func and islclosure(func) then
             functionInfoStr = {
                 info = getinfo(func),
-                constants = getconstants(func),
+                constants = setmetatable(getconstants(func), {__mode="kv"}),
                 upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
             }
 
@@ -1902,10 +1869,8 @@ if not getgenv().SimpleSpyExecuted then
         bringBackOnResize()
         SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or CoreGui
         wrap(function()
-            if not Players.LocalPlayer then
-                Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-            end
-            Mouse = Players.LocalPlayer:GetMouse()
+            local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPLayer
+            Mouse = lp:GetMouse()
             oldIcon = Mouse.Icon
             table.insert(connections, Mouse.Move:Connect(mouseMoved))
         end)()
@@ -1922,7 +1887,7 @@ if not getgenv().SimpleSpyExecuted then
             hookfunction(remoteFunction.InvokeServer, originalFunction)
         end
         SimpleSpy3:Destroy()
-        ErrorPrompt("An error has occured:\n"..tostring(err))
+        ErrorPrompt("An error has occured:\n"..Safetostring(err))
         return
     end
 else
@@ -2022,7 +1987,7 @@ newButton(
                 if typeof(selected.Function) ~= 'string' then
                     codebox:setRaw("--[[Generating Function Info please wait]]")
                     RunService.Heartbeat:Wait()
-                    selected.Function = tostring(v2v({functionInfo = selected.Function}))
+                    selected.Function = Safetostring(v2v({functionInfo = selected.Function}))
                 end
                 codebox:setRaw("-- Calling function info\n-- Generated by the SimpleSpy serializer\n\n"..selected.Function)
                 TextLabel.Text = "Done! Function info generated by the SimpleSpy Serializer."
@@ -2120,7 +2085,7 @@ newButton(
 newButton("Decompile",
     function() return "Decompile source script" end,
     function()
-        if selected and selected.Source and decompile then
+        if selected and selected.Source then
             local Source = selected.Source
             if not DecompiledScripts[Source] then
                 codebox:setRaw("--[[Decompiling]]")
