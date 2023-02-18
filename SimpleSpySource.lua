@@ -6,7 +6,7 @@ local configs = {
     logcheckcaller = false,
     autoblock = false,
     funcEnabled = true,
-    logmetamethod = false,
+    advancedinfo = false,
     supersecretdevtoggle = false
 }
 
@@ -350,33 +350,36 @@ if identifyexecutor then
     end
 end
 
-local cachedconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
+local suc,err = pcall(function() --Only reason Im pcalling this is because of json encoding stuff which requires an http junk
+    local cachedconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
 
-if cachedconfigs then
-    for i,v in next, configs do
-        if cachedconfigs[i] == nil then
-            cachedconfigs[i] = v
+    if cachedconfigs then
+        for i,v in next, configs do
+            if cachedconfigs[i] == nil then
+                cachedconfigs[i] = v
+            end
         end
+        configs = cachedconfigs
     end
-    configs = cachedconfigs
-end
 
-if makefolder and isfolder and isfile and writefile then
-    if not isfolder("SimpleSpy") then
-        makefolder("SimpleSpy")
-    end
-    if not isfolder("SimpleSpy//Assets") then
-        makefolder("SimpleSpy//Assets")
-    end
-    if not isfile("SimpleSpy//Settings.json") then
-        writefile("SimpleSpy//Settings.json",jsone(configs))
-    end
-    wrap(function()
-        repeat wait(6)
+    if makefolder and isfolder and isfile and writefile then
+        if not isfolder("SimpleSpy") then
+            makefolder("SimpleSpy")
+        end
+        if not isfolder("SimpleSpy//Assets") then
+            makefolder("SimpleSpy//Assets")
+        end
+        if not isfile("SimpleSpy//Settings.json") then
             writefile("SimpleSpy//Settings.json",jsone(configs))
-        until not writefiletoggle
-    end)()
-end
+        end
+        wrap(function()
+            repeat wait(6)
+                writefile("SimpleSpy//Settings.json",jsone(configs))
+            until not writefiletoggle
+        end)()
+    end
+end)
+if not suc then ErrorPrompt(("An error has occured: (%s)"):format(err)) end
 
 --- Converts arguments to a string and generates code that calls the specified method with them, recommended to be used in conjunction with ValueToString (method must be a string, e.g. `game:GetService("ReplicatedStorage").Remote:FireServer`)
 --- @param method string
@@ -1179,7 +1182,10 @@ local ufunctions = {
         return "Enum." .. Safetostring(u)
     end,
     RBXScriptSignal = function(u)
-        return "nil --[[RBXScriptSignal]]"
+        return "RBXScriptSignal --[[RBXScriptSignal's are not supported]]"
+    end,
+    RBXScriptConnection = function(u)
+        return "RBXScriptConnection --[[RBXScriptConnection's are not supported]]"
     end,
     Vector3 = function(u)
         return ("Vector3.new(%s, %s, %s)"):format(Safetostring(u))
@@ -1248,10 +1254,10 @@ local typev2sfunctions = {
         if ufunctions[vtypeof] then
             return ufunctions[vtypeof](v)
         end
-        return ("%s(nil)"):format(vtypeof)
+        return ("%s(%s) --[[Generation Failure]]"):format(vtypeof,Safetostring(v))
     end,
     vector = function(v)
-        return string.format("Vector3.new(%s, %s, %s)", v2s(v.X), v2s(v.Y), v2s(v.Z))
+        return ("Vector3.new(%s)"):format(Safetostring(v))--string.format("Vector3.new(%s, %s, %s)", v2s(v.X), v2s(v.Y), v2s(v.Z))
     end
 }
 
@@ -1269,7 +1275,7 @@ function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     elseif typev2sfunctions[vtype] then
         return typev2sfunctions[vtype](v,vtypeof)
     end
-    return "nil --[[" .. vtypeof .. "]]"
+    return ("%s(%s) --[[Generation Failure]]"):format(vtypeof,Safetostring(v))
 end
 
 --- value-to-variable
@@ -1704,8 +1710,11 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling,met
                 upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
             }
 
-            if configs.logmetamethod then
-                functionInfoStr["metamethod"] = metamethod
+            if configs.advancedinfo then
+                functionInfoStr["advancedinfo"] = {
+                    metamethod = metamethod,
+                    protos = setmetatable(getprotos(func), {__mode="kv"})
+                }
             end
 
             if type(calling) == "userdata" then
@@ -1834,7 +1843,7 @@ if not getgenv().SimpleSpyExecuted then
         -- if gethui then configs.funcEnabled = false end
         onToggleButtonClick()
         if not hookmetamethod then
-            ErrorPrompt("Simple Spy v3 will not function to it's fullest capablity due to your executor not supporting hookmetamethod.",true)
+            ErrorPrompt("Simple Spy V3 will not function to it's fullest capablity due to your executor not supporting hookmetamethod.",true)
         end
         codebox = Highlight.new(CodeBox)
         wrap(function()
@@ -2136,12 +2145,12 @@ function()
     TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
 end)
 
-newButton("Log metamethod",function()
-    return ("[%s] Display remote's metamethod in Function Info"):format(configs.logmetamethod and "ENABLED" or "DISABLED")
+newButton("Advanced Info",function()
+    return ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
 end,
 function()
-    configs.logmetamethod = not configs.logmetamethod
-    TextLabel.Text = ("[%s] Display remote's metamethod in Function Info"):format(configs.logmetamethod and "ENABLED" or "DISABLED")
+    configs.advancedinfo = not configs.advancedinfo
+    TextLabel.Text = ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
 end)
 
 if syn and syn.request then request = syn.request end
