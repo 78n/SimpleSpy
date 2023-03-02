@@ -113,151 +113,27 @@ local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile(
 
 -- Instances:
 
-local SimpleSpy3 = Create("ScreenGui",{Name = "SimpleSpy3",ResetOnSpawn = false})
-local Storage = Create("Folder",{Name = "Storage",Parent = SimpleSpy3})
-local Background = Create("Frame",{Name = "Background",Parent = SimpleSpy3,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 500, 0, 200),Size = UDim2.new(0, 450, 0, 268)})
-local LeftPanel = Create("Frame",{Name = "LeftPanel",Parent = Background,BackgroundColor3 = Color3.fromRGB(53, 52, 55),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 19),Size = UDim2.new(0, 131, 0, 249)})
-local LogList = Create("ScrollingFrame",{Name = "LogList",Parent = LeftPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 9),Size = UDim2.new(0, 131, 0, 232),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
+local SimpleSpy3 = Create("ScreenGui",{ResetOnSpawn = false})
+local Storage = Create("Folder",{Parent = SimpleSpy3})
+local Background = Create("Frame",{Parent = SimpleSpy3,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 500, 0, 200),Size = UDim2.new(0, 450, 0, 268)})
+local LeftPanel = Create("Frame",{Parent = Background,BackgroundColor3 = Color3.fromRGB(53, 52, 55),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 19),Size = UDim2.new(0, 131, 0, 249)})
+local LogList = Create("ScrollingFrame",{Parent = LeftPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 9),Size = UDim2.new(0, 131, 0, 232),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
 local UIListLayout = Create("UIListLayout",{Parent = LogList,HorizontalAlignment = Enum.HorizontalAlignment.Center,SortOrder = Enum.SortOrder.LayoutOrder})
-local RightPanel = Instance.new("Frame")
-local CodeBox = Instance.new("Frame")
-local ScrollingFrame = Instance.new("ScrollingFrame")
-local UIGridLayout = Instance.new("UIGridLayout")
-local TopBar = Instance.new("Frame")
-local Simple = Instance.new("TextButton")
-local CloseButton = Instance.new("TextButton")
-local ImageLabel = Instance.new("ImageLabel")
-local MaximizeButton = Instance.new("TextButton")
-local ImageLabel_2 = Instance.new("ImageLabel")
-local MinimizeButton = Instance.new("TextButton")
-local ImageLabel_3 = Instance.new("ImageLabel")
-local ToolTip = Instance.new("Frame")
-local TextLabel = Instance.new("TextLabel")
+local RightPanel = Create("Frame",{Parent = Background,BackgroundColor3 = Color3.fromRGB(37, 36, 38),BorderSizePixel = 0,Position = UDim2.new(0, 131, 0, 19),Size = UDim2.new(0, 319, 0, 249)})
+local CodeBox = Create("Frame",{Parent = RightPanel,BackgroundColor3 = Color3.new(0.0823529, 0.0745098, 0.0784314),BorderSizePixel = 0,Size = UDim2.new(0, 319, 0, 119)})
+local ScrollingFrame = Create("ScrollingFrame",{Parent = RightPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 0, 0.5, 0),Size = UDim2.new(1, 0, 0.5, -9),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
+local UIGridLayout = Create("UIGridLayout",{Parent = ScrollingFrame,HorizontalAlignment = Enum.HorizontalAlignment.Center,SortOrder = Enum.SortOrder.LayoutOrder,CellPadding = UDim2.new(0, 0, 0, 0),CellSize = UDim2.new(0, 94, 0, 27)})
+local TopBar = Create("Frame",{Parent = Background,BackgroundColor3 = Color3.fromRGB(37, 35, 38),BorderSizePixel = 0,Size = UDim2.new(0, 450, 0, 19)})
+local Simple = Create("TextButton",{Parent = TopBar,BackgroundColor3 = Color3.new(1, 1, 1),AutoButtonColor = false,BackgroundTransparency = 1,Position = UDim2.new(0, 5, 0, 0),Size = UDim2.new(0, 57, 0, 18),Font = Enum.Font.SourceSansBold,Text =  "SimpleSpy",TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
+local CloseButton = Create("TextButton",{Parent = TopBar,BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),BorderSizePixel = 0,Position = UDim2.new(1, -19, 0, 0),Size = UDim2.new(0, 19, 0, 19),Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
+local ImageLabel = Create("ImageLabel",{Parent = CloseButton,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 5, 0, 5),Size = UDim2.new(0, 9, 0, 9),Image = "http://www.roblox.com/asset/?id=5597086202"})
+local MaximizeButton = Create("TextButton",{Parent = TopBar,BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),BorderSizePixel = 0,Position = UDim2.new(1, -38, 0, 0),Size = UDim2.new(0, 19, 0, 19),Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
+local ImageLabel_2 = Create("ImageLabel",{Parent = MaximizeButton,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 5, 0, 5),Size = UDim2.new(0, 9, 0, 9),Image = "http://www.roblox.com/asset/?id=5597108117"})
+local MinimizeButton = Create("TextButton",{Parent = TopBar,BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),BorderSizePixel = 0,Position = UDim2.new(1, -57, 0, 0),Size = UDim2.new(0, 19, 0, 19),Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
+local ImageLabel_3 = Create("ImageLabel",{Parent = MinimizeButton,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 5, 0, 5),Size = UDim2.new(0, 9, 0, 9),Image = "http://www.roblox.com/asset/?id=5597105827"})
 
---Properties:
-RightPanel.Name = "RightPanel"
-RightPanel.Parent = Background
-RightPanel.BackgroundColor3 = Color3.fromRGB(37, 36, 38)
-RightPanel.BorderSizePixel = 0
-RightPanel.Position = UDim2.new(0, 131, 0, 19)
-RightPanel.Size = UDim2.new(0, 319, 0, 249)
-
-CodeBox.Name = "CodeBox"
-CodeBox.Parent = RightPanel
-CodeBox.BackgroundColor3 = Color3.new(0.0823529, 0.0745098, 0.0784314)
-CodeBox.BorderSizePixel = 0
-CodeBox.Size = UDim2.new(0, 319, 0, 119)
-
-ScrollingFrame.Parent = RightPanel
-ScrollingFrame.Active = true
-ScrollingFrame.BackgroundColor3 = Color3.new(1, 1, 1)
-ScrollingFrame.BackgroundTransparency = 1
-ScrollingFrame.Position = UDim2.new(0, 0, 0.5, 0)
-ScrollingFrame.Size = UDim2.new(1, 0, 0.5, -9)
-ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-ScrollingFrame.ScrollBarThickness = 4
-
-UIGridLayout.Parent = ScrollingFrame
-UIGridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIGridLayout.CellPadding = UDim2.new(0, 0, 0, 0)
-UIGridLayout.CellSize = UDim2.new(0, 94, 0, 27)
-
-TopBar.Name = "TopBar"
-TopBar.Parent = Background
-TopBar.BackgroundColor3 = Color3.fromRGB(37, 35, 38)
-TopBar.BorderSizePixel = 0
-TopBar.Size = UDim2.new(0, 450, 0, 19)
-
-Simple.Name = "Simple"
-Simple.Parent = TopBar
-Simple.BackgroundColor3 = Color3.new(1, 1, 1)
-Simple.AutoButtonColor = false
-Simple.BackgroundTransparency = 1
-Simple.Position = UDim2.new(0, 5, 0, 0)
-Simple.Size = UDim2.new(0, 57, 0, 18)
-Simple.Font = Enum.Font.SourceSansBold
-Simple.Text =  "SimpleSpy"
-Simple.TextColor3 = Color3.new(1, 1, 1)
-Simple.TextSize = 14
-Simple.TextXAlignment = Enum.TextXAlignment.Left
-
-CloseButton.Name = "CloseButton"
-CloseButton.Parent = TopBar
-CloseButton.BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902)
-CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(1, -19, 0, 0)
-CloseButton.Size = UDim2.new(0, 19, 0, 19)
-CloseButton.Font = Enum.Font.SourceSans
-CloseButton.Text = ""
-CloseButton.TextColor3 = Color3.new(0, 0, 0)
-CloseButton.TextSize = 14
-
-ImageLabel.Parent = CloseButton
-ImageLabel.BackgroundColor3 = Color3.new(1, 1, 1)
-ImageLabel.BackgroundTransparency = 1
-ImageLabel.Position = UDim2.new(0, 5, 0, 5)
-ImageLabel.Size = UDim2.new(0, 9, 0, 9)
-ImageLabel.Image = "http://www.roblox.com/asset/?id=5597086202"
-
-MaximizeButton.Name = "MaximizeButton"
-MaximizeButton.Parent = TopBar
-MaximizeButton.BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902)
-MaximizeButton.BorderSizePixel = 0
-MaximizeButton.Position = UDim2.new(1, -38, 0, 0)
-MaximizeButton.Size = UDim2.new(0, 19, 0, 19)
-MaximizeButton.Font = Enum.Font.SourceSans
-MaximizeButton.Text = ""
-MaximizeButton.TextColor3 = Color3.new(0, 0, 0)
-MaximizeButton.TextSize = 14
-
-ImageLabel_2.Parent = MaximizeButton
-ImageLabel_2.BackgroundColor3 = Color3.new(1, 1, 1)
-ImageLabel_2.BackgroundTransparency = 1
-ImageLabel_2.Position = UDim2.new(0, 5, 0, 5)
-ImageLabel_2.Size = UDim2.new(0, 9, 0, 9)
-ImageLabel_2.Image = "http://www.roblox.com/asset/?id=5597108117"
-
-MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Parent = TopBar
-MinimizeButton.BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902)
-MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Position = UDim2.new(1, -57, 0, 0)
-MinimizeButton.Size = UDim2.new(0, 19, 0, 19)
-MinimizeButton.Font = Enum.Font.SourceSans
-MinimizeButton.Text = ""
-MinimizeButton.TextColor3 = Color3.new(0, 0, 0)
-MinimizeButton.TextSize = 14
-
-ImageLabel_3.Parent = MinimizeButton
-ImageLabel_3.BackgroundColor3 = Color3.new(1, 1, 1)
-ImageLabel_3.BackgroundTransparency = 1
-ImageLabel_3.Position = UDim2.new(0, 5, 0, 5)
-ImageLabel_3.Size = UDim2.new(0, 9, 0, 9)
-ImageLabel_3.Image = "http://www.roblox.com/asset/?id=5597105827"
-
-ToolTip.Name = "ToolTip"
-ToolTip.Parent = SimpleSpy3
-ToolTip.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-ToolTip.BackgroundTransparency = 0.1
-ToolTip.BorderColor3 = Color3.new(1, 1, 1)
-ToolTip.Size = UDim2.new(0, 200, 0, 50)
-ToolTip.ZIndex = 3
-ToolTip.Visible = false
-
-TextLabel.Parent = ToolTip
-TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
-TextLabel.BackgroundTransparency = 1
-TextLabel.Position = UDim2.new(0, 2, 0, 2)
-TextLabel.Size = UDim2.new(0, 196, 0, 46)
-TextLabel.ZIndex = 3
-TextLabel.Font = Enum.Font.SourceSans
-TextLabel.Text = "This is some slightly longer text."
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextSize = 14
-TextLabel.TextWrapped = true
-TextLabel.TextXAlignment = Enum.TextXAlignment.Left
-TextLabel.TextYAlignment = Enum.TextYAlignment.Top
+local ToolTip = Create("Frame",{Parent = SimpleSpy3,BackgroundColor3 = Color3.fromRGB(26, 26, 26),BackgroundTransparency = 0.1,BorderColor3 = Color3.new(1, 1, 1),Size = UDim2.new(0, 200, 0, 50),ZIndex = 3,Visible = false})
+local TextLabel = Create("TextLabel",{Parent = ToolTip,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 2, 0, 2),Size = UDim2.new(0, 196, 0, 46),ZIndex = 3,Font = Enum.Font.SourceSans,Text = "This is some slightly longer text.",TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextWrapped = true,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top})
 
 -------------------------------------------------------------------------------
 -- init
@@ -647,9 +523,8 @@ function toggleMinimize(override)
             toggleSideTray(true)
         end
         LeftPanel.Visible = true
-        TweenService:Create(LeftPanel, TweenInfo.new(0.5), {Size = UDim2.new(0, 131, 0, 0)}):Play()
-        wait(0.5)
         remotesFadeIn = fadeOut(LeftPanel:GetDescendants())
+        TweenService:Create(LeftPanel, TweenInfo.new(0.5), {Size = UDim2.new(0, 131, 0, 0)}):Play()
         wait(0.5)
     else
         TweenService:Create(LeftPanel, TweenInfo.new(0.5), {Size = UDim2.new(0, 131, 0, 249)}):Play()
@@ -1012,21 +887,20 @@ end
 --- @param remote any
 --- @param function_info string
 --- @param blocked any
-function newRemote(type, name, args, remote, function_info, blocked, src)
-    if layoutOrderNum < 1 then
-        layoutOrderNum = 999999999
-    end
+function newRemote(type, name, args, remote, func, blocked, src, metamethod,info)
+    if layoutOrderNum < 1 then layoutOrderNum = 999999999 end
     local RemoteTemplate = Create("Frame",{LayoutOrder = layoutOrderNum,Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
     local ColorBar = Create("Frame",{Name = "ColorBar",Parent = RemoteTemplate,BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 7, 0, 18),ZIndex = 2})
     local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
     local Button = Create("TextButton",{Name = "Button",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.75,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 117, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
 
-    --local id = Create("IntValue",{Name = "ID",Value = #logs + 1,Parent = RemoteTemplate})
     local log = {
         Name = name,
-        Function = function_info,
+        Function = func,
         Remote = remote,
+        metamethod = metamethod,
         args = args,
+        info = info,
         Log = RemoteTemplate,
         Button = Button,
         Blocked = blocked,
@@ -1676,12 +1550,8 @@ function taskscheduler()
     end
 end
 
---- Handles remote logs
-function remoteHandler(hookfunction, methodName, remote, args, func, calling,metamethod)
+function remoteHandler(methodName, remote, args, info, callingscript, metamethod)
     if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-        if configs.funcEnabled and not calling then
-            _, calling = pcall(getScriptFromSrc, getinfo(func).source)
-        end
         if configs.autoblock then
             if excluding[remote] then
                 return
@@ -1703,76 +1573,71 @@ function remoteHandler(hookfunction, methodName, remote, args, func, calling,met
         end
         local functionInfoStr = "--Function Info is disabled"
         local src
-        if func and islclosure(func) then
-            functionInfoStr = {
-                info = getinfo(func),
-                constants = setmetatable(getconstants(func), {__mode="kv"}),
-                upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
-            }
+        if info and islclosure(info.func) then
+            functionInfoStr = info.func
 
-            if configs.advancedinfo then
-                functionInfoStr["advancedinfo"] = {
-                    metamethod = metamethod,
-                    protos = setmetatable(getprotos(func), {__mode="kv"})
-                }
-            end
-
-            if type(calling) == "userdata" then
-                src = calling
+            if type(callingscript) == "userdata" then
+                src = callingscript
             end
         end
         if lower(methodName) == "fireserver" then
-            newRemote("event", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src)
+            newRemote("event", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src, metamethod,info)
         elseif lower(methodName) == "invokeserver" then
-            newRemote("function", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src)
+            newRemote("function", remote.Name, args, remote, functionInfoStr, (blocklist[remote] or blocklist[remote.Name]), src, metamethod,info)
         end
     end
 end
 
-local newindex = function(method,originalfunction,remote,...)
-    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalfunction(remote,...) end
-    local args = {...}
-    local methodName = lower(method)
-    if methodtypes[methodName] then
-        if not (blacklist[remote] or blacklist[remote.Name]) then
-            local func
-            local calling
-            if configs.funcEnabled then
-                func = getinfo(getinfolevel+1).func-- or funcInfo
-                calling = (getcallingscript and getcallingscript()) or nil
+local newindex = function(method,originalfunction,...)
+    local remote = ...
+    if typeof(remote) == 'Instance' then
+        if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
+        local args = {select(2,...)}
+        
+        if methodtypes[lower(method)] then
+            if not (blacklist[remote] or blacklist[remote.Name]) then
+                local info
+                local callingscript
+
+                if configs.funcEnabled then
+                    info = getinfo(getinfolevel+1)
+                    callingscript = getcallingscript() or nil
+                end
+                wrap(function()
+                    schedule(remoteHandler, method, remote, args, info, callingscript, "__index")
+                end)()
             end
-            wrap(function()
-                schedule(remoteHandler, false, methodName, remote, args, func, calling,"__index")
-            end)()
-        end
-        if typeof(remote) == "Instance" and (blocklist[remote] or blocklist[remote.Name]) then
-            return
+            if (blocklist[remote] or blocklist[remote.Name]) then return end
         end
     end
     return originalfunction(remote,...)
 end
 
-local newnamecall = newcclosure(function(remote, ...)
-    if not configs.logcheckcaller and checkcaller and checkcaller() then return originalnamecall(remote, ...) end
-    local args = {...}
-    local methodName = lower(getnamecallmethod())
-    if methodtypes[methodName] then
-        if not (blacklist[remote] or blacklist[remote.Name]) then
-            local func
-            local calling
-            if configs.funcEnabled then
-                func = getinfo(getinfolevel).func-- or funcInfo
-                calling = getcallingscript() or nil
+local newnamecall = newcclosure(function(...)
+    local remote = ...
+    if typeof(remote) == 'Instance' then
+        if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
+
+        local args = {select(2,...)}
+        local method = getnamecallmethod()
+        
+        if methodtypes[lower(method)] then
+            if not (blacklist[remote] or blacklist[remote.Name]) then
+                local info
+                local callingscript
+
+                if configs.funcEnabled then
+                    info = getinfo(getinfolevel)
+                    callingscript = getcallingscript() or nil
+                end
+                wrap(function()
+                    schedule(remoteHandler, method, remote, args, info, callingscript, "__namecall")
+                end)()
             end
-            wrap(function()
-                schedule(remoteHandler, false, methodName, remote, args, func, calling,"__namecall")
-            end)()
-        end
-        if typeof(remote) == "Instance" and (blocklist[remote] or blocklist[remote.Name]) then
-            return
+            if (blocklist[remote] or blocklist[remote.Name]) then return end
         end
     end
-    return originalnamecall(remote, ...)
+    return originalnamecall(...)
 end)
 
 local newFireServer = newcclosure(function(...)
@@ -1979,7 +1844,11 @@ newButton(
     "Get Script",
     function() return "Click to copy calling script to clipboard\nWARNING: Not super reliable, nil == could not find" end,
     function()
-        if selected and selected.Source then
+        if selected then
+            if not selected.Source then
+                _, callingscript = pcall(getScriptFromSrc, selected.info.source)
+                selected.Source = callingscript
+            end
             setclipboard(v2s(selected.Source))
             TextLabel.Text = "Done!"
         end
@@ -1992,10 +1861,23 @@ newButton(
     function() return "Click to view calling function information" end,
     function()
         if selected then
-            if selected.Function then
-                if typeof(selected.Function) ~= 'string' then
+            local func = selected.Function
+            if func then
+                if typeof(func) ~= 'string' then
                     codebox:setRaw("--[[Generating Function Info please wait]]")
                     RunService.Heartbeat:Wait()
+                    selected.Function = {
+                        info = getinfo(func),
+                        constants = setmetatable(getconstants(func), {__mode="kv"}),
+                        upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
+                    }
+            
+                    if configs.advancedinfo then
+                        selected.Function["advancedinfo"] = {
+                            metamethod = selected.metamethod,
+                            protos = setmetatable(getprotos(func), {__mode="kv"})
+                        }
+                    end
                     selected.Function = Safetostring(v2v({functionInfo = selected.Function}))
                 end
                 codebox:setRaw("-- Calling function info\n-- Generated by the SimpleSpy serializer\n\n"..selected.Function)
