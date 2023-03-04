@@ -1,4 +1,4 @@
 Update Logs:
-Reverted update due to me not testing stuff
-when I fix the bugs I'll republish it
-but for now sorry
+Doing some last bit testing
+I also added getcallbackmembers (syn v2 doesnt support getcallbackmember so no callbacks for you)
+and other stuff
