@@ -7,6 +7,7 @@ local configs = {
     autoblock = false,
     funcEnabled = true,
     advancedinfo = false,
+    logreturnvalues = false,
     supersecretdevtoggle = false
 }
 
@@ -19,6 +20,7 @@ local coroutine = coroutine
 local string = string
 local Color3 = Color3
 local Instance = Instance
+
 local lower = string.lower
 local round = math.round
 local wrap = coroutine.wrap
@@ -27,13 +29,18 @@ local resume = coroutine.resume
 local status = coroutine.status
 local yield = coroutine.yield
 local create = coroutine.create
+
+local GetDebugId = game.GetDebugId
 local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
 local clear = table.clear
-local GetDebugId = game.GetDebugId
+
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local clonefunction = clonefunction or function(func)
+    return func
+end
 local cloneref = cloneref or function(instance)
     return instance
 end
@@ -87,7 +94,7 @@ local function ErrorPrompt(Message,state)
         prompt:setErrorTitle("Simple Spy V3 Error")
         prompt:updateButtons({{
             Text = "Proceed",
-            Callback = function(...)
+            Callback = function()
                 prompt:_close()
                 ErrorStoarge:Destroy()
                 state = false
@@ -901,7 +908,7 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
         Log = RemoteTemplate,
         Button = Button,
         Blocked = blocked,
-        Source = cloneref(src),
+        Source = src and cloneref(src),
         GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
     }
     if src and not DecompiledScripts[src] then
@@ -934,33 +941,30 @@ function genScript(remote, args)
             end)
         then
             gen = gen .. "-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
-            if
-                not pcall(
-                    function()
-                        for i, v in next, args do
-                            if type(i) ~= "Instance" and type(i) ~= "userdata" then
-                                gen = gen .. "\n    [object] = "
-                            elseif type(i) == "string" then
-                                gen = gen .. '\n    ["' .. i .. '"] = '
-                            elseif type(i) == "userdata" and typeof(i) ~= "Instance" then
-                                gen = gen .. "\n    [" .. string.format("nil --[[%s]]", typeof(v)) .. ")] = "
-                            elseif type(i) == "userdata" then
-                                gen = gen .. "\n    [game." .. i:GetFullName() .. ")] = "
-                            end
-                            if type(v) ~= "Instance" and type(v) ~= "userdata" then
-                                gen = gen .. "object"
-                            elseif type(v) == "string" then
-                                gen = gen .. '"' .. v .. '"'
-                            elseif type(v) == "userdata" and typeof(v) ~= "Instance" then
-                                gen = gen .. string.format("nil --[[%s]]", typeof(v))
-                            elseif type(v) == "userdata" then
-                                gen = gen .. "game." .. v:GetFullName()
-                            end
+            if not pcall(function()
+                    for i, v in next, args do
+                        if type(i) ~= "Instance" and type(i) ~= "userdata" then
+                            gen = gen .. "\n    [object] = "
+                        elseif type(i) == "string" then
+                            gen = gen .. '\n    ["' .. i .. '"] = '
+                        elseif type(i) == "userdata" and typeof(i) ~= "Instance" then
+                            gen = gen .. "\n    [" .. string.format("nil --[[%s]]", typeof(v)) .. ")] = "
+                        elseif type(i) == "userdata" then
+                            gen = gen .. "\n    [game." .. i:GetFullName() .. ")] = "
                         end
-                        gen = gen .. "\n}\n\n"
+                        if type(v) ~= "Instance" and type(v) ~= "userdata" then
+                            gen = gen .. "object"
+                        elseif type(v) == "string" then
+                            gen = gen .. '"' .. v .. '"'
+                        elseif type(v) == "userdata" and typeof(v) ~= "Instance" then
+                            gen = gen .. string.format("nil --[[%s]]", typeof(v))
+                        elseif type(v) == "userdata" then
+                            gen = gen .. "game." .. v:GetFullName()
+                        end
                     end
-                )
-             then
+                    gen = gen .. "\n}\n\n"
+                end)
+            then
                 gen = gen .. "}\n-- Legacy tableToString failure! Unable to decompile."
             end
         end
@@ -1084,9 +1088,6 @@ local ufunctions = {
     end,
     Color3 = function(u)
         return ("Color3.fromRGB(%s, %s, %s)"):format(u.r*255,u.g*255,u.b*255)
-    end,
-    Random = function(u)
-        return "Random.new()"
     end
 }
 
@@ -1587,6 +1588,12 @@ function remoteHandler(methodName, remote, args, info, callingscript, metamethod
     end
 end
 
+local function logreturnvalue(func,...)
+    local returndata = func(...)
+    return returndata
+end
+
+
 local newindex = function(method,originalfunction,...)
     local remote = ...
     if typeof(remote) == 'Instance' then
@@ -1656,17 +1663,17 @@ end)
 function toggleSpy()
     if not toggle then
         if hookmetamethod then
-            local oldNamecall = hookmetamethod(game, "__namecall", newnamecall)
+            local oldNamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
             originalnamecall = originalnamecall or function(...)
                 return oldNamecall(...)
             end
         end
-        originalEvent = hookfunction(remoteEvent.FireServer, newFireServer)
-        originalFunction = hookfunction(remoteFunction.InvokeServer, newInvokeServer)
+        originalEvent = hookfunction(remoteEvent.FireServer, clonefunction(newFireServer))
+        originalFunction = hookfunction(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
     else
         if hookmetamethod then
 			if originalnamecall then
-				hookmetamethod(game, "__namecall", originalnamecall)
+				hookmetamethod(game, "__namecall", clonefunction(originalnamecall))
 			end
         end
         hookfunction(remoteEvent.FireServer, originalEvent)
@@ -1689,6 +1696,8 @@ function shutdown()
         connection:Disconnect()
     end
     clear(connections)
+    clear(logs)
+    clear(remoteLogs)
     if originalnamecall then
         hookmetamethod(game, "__namecall", originalnamecall)
     end
@@ -1821,8 +1830,7 @@ newButton(
 )
 
 -- Executes the contents of the codebox through loadstring
-newButton(
-    "Run Code",
+newButton("Run Code",
     function() return "Click to execute code" end,
     function()
         local Remote = selected and selected.Remote
@@ -1848,9 +1856,8 @@ newButton(
     function() return "Click to copy calling script to clipboard\nWARNING: Not super reliable, nil == could not find" end,
     function()
         if selected then
-            if not selected.Source and selected.info then
-                _, callingscript = pcall(getScriptFromSrc, selected.info.source)
-                selected.Source = callingscript
+            if not selected.Source then
+                selected.Source = rawget(getfenv(selected.Function),"script")
             end
             setclipboard(v2s(selected.Source))
             TextLabel.Text = "Done!"
