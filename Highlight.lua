@@ -5,8 +5,13 @@
      - uses the power of fancy syntax detection algorithms to convert a frame into a syntax highlighted high quality code box
      - is cool
 ]]
-local TextService = game:GetService("TextService")
-local RunService = game:FindService("RunService")
+
+local cloneref  = cloneref or function(...)
+    return ...
+end
+
+local TextService = cloneref(game:GetService("TextService"))
+local RunService = cloneref(game:FindService("RunService"))
 --- The Highlight class
 --- @class Highlight
 local Highlight = {}
@@ -339,18 +344,15 @@ function Highlight:init(frame)
         lineNumbersFrame = Instance.new("Frame")
 
         local parentSize = frame.AbsoluteSize
-        scrollingFrame.Name = "HIGHLIGHT_IDE"
         scrollingFrame.Size = UDim2.new(0, parentSize.X, 0, parentSize.Y)
         scrollingFrame.BackgroundColor3 = backgroundColor
         scrollingFrame.BorderSizePixel = 0
         scrollingFrame.ScrollBarThickness = 4
 
-        textFrame.Name = ""
         textFrame.Size = UDim2.new(1, -40, 1, 0)
         textFrame.Position = UDim2.new(0, 40, 0, 0)
         textFrame.BackgroundTransparency = 1
 
-        lineNumbersFrame.Name = ""
         lineNumbersFrame.Size = UDim2.new(0, 25, 1, 0)
         lineNumbersFrame.BackgroundTransparency = 1
 
