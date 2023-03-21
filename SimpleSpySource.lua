@@ -8,10 +8,13 @@ local configs = {
     funcEnabled = true,
     advancedinfo = false,
     logreturnvalues = false,
-    supersecretdevtoggle = false
+    supersecretdevtoggle = false,
+    weaktables = false
 }
 
 local game = game
+local mt = getrawmetatable(game)
+local mtnamecall = rawget(mt,"__namecall")
 local workspace = workspace
 local table = table
 local math = math
@@ -20,10 +23,13 @@ local coroutine = coroutine
 local string = string
 local Color3 = Color3
 local Instance = Instance
+local syn = syn 
+local oth = syn and syn.oth
 
+local unhook = oth and oth.unhook
+local hook = oth and oth.hook
 local lower = string.lower
 local round = math.round
-local wrap = coroutine.wrap
 local running = coroutine.running
 local resume = coroutine.resume
 local status = coroutine.status
@@ -34,10 +40,13 @@ local GetDebugId = game.GetDebugId
 local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
+local spawn = task.spawn
 local clear = table.clear
+local clone = table.clone
 
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local getcustomasset = getsynasset or getcustomasset
 local clonefunction = clonefunction or function(func)
     return func
 end
@@ -63,7 +72,7 @@ end
 
 local function Safetostring(userdata)
 	if type(userdata) == "table" or typeof(userdata) == "userdata" then
-		local rawmetatable = getrawmetatable and getrawmetatable(userdata)
+		local rawmetatable = getrawmetatable(userdata)
 		local cachedstring = rawmetatable and rawget(rawmetatable, "__tostring")
 
 		if cachedstring then
@@ -90,6 +99,7 @@ local function ErrorPrompt(Message,state)
         local ErrorPrompt = getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
         local prompt = ErrorPrompt.new("Default",{HideErrorCode = true})
         local ErrorStoarge = Create("ScreenGui",{Parent = CoreGui,ResetOnSpawn = false})
+        local thread = state and running()
         prompt:setParent(ErrorStoarge)
         prompt:setErrorTitle("Simple Spy V3 Error")
         prompt:updateButtons({{
@@ -97,22 +107,22 @@ local function ErrorPrompt(Message,state)
             Callback = function()
                 prompt:_close()
                 ErrorStoarge:Destroy()
-                state = false
+                if thread then
+                    resume(thread)
+                end
             end,
             Primary = true
         }}, 'Default')
         prompt:_open(Message)
-        if state then
-            repeat task.wait() until not state
+        if thread then
+            yield(thread)
         end
     else
         warn(Message)
     end
 end
 
-local getcustomasset = getsynasset or getcustomasset
-
-local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
+local Highlight = --[[(isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or ]]loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
 ---- GENERATED (kinda sorta mostly) BY GUI to LUA ----
 
 -- Instances:
@@ -140,8 +150,6 @@ local ToolTip = Create("Frame",{Parent = SimpleSpy3,BackgroundColor3 = Color3.fr
 local TextLabel = Create("TextLabel",{Parent = ToolTip,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 2, 0, 2),Size = UDim2.new(0, 196, 0, 46),ZIndex = 3,Font = Enum.Font.SourceSans,Text = "This is some slightly longer text.",TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextWrapped = true,TextXAlignment = Enum.TextXAlignment.Left,TextYAlignment = Enum.TextYAlignment.Top})
 
 -------------------------------------------------------------------------------
--- init
-local Mouse
 
 local selectedColor = Color3.new(0.321569, 0.333333, 1)
 local deselectedColor = Color3.new(0.8, 0.8, 0.8)
@@ -186,7 +194,6 @@ local bottomstr = ""
 local remotesFadeIn
 local rightFadeIn
 local codebox
-local oldIcon
 local p
 local getnilrequired = false
 
@@ -197,12 +204,12 @@ local excluding = {}
 -- if mouse inside gui
 local mouseInGui = false
 
--- handy array of RBXScriptConnections to disconnect on shutdown
 local function jsone(str) return http:JSONEncode(str) end
 local function jsond(str) return http:JSONDecode(str) end
 
 local connections = {}
 local DecompiledScripts = {}
+local generation = {}
 local writefiletoggle = false
 local originalnamecall
 
@@ -222,11 +229,13 @@ local instancetypes = {
 }
 
 local getinfolevel = 3
+local synv3 = false
 
 if identifyexecutor then
     local _, version = identifyexecutor()
     if (version and version:sub(1, 2) == 'v3') then
-        getinfolevel = 2
+        getinfolevel = 1
+        synv3 = true
     end
 end
 
@@ -252,11 +261,11 @@ local suc,err = pcall(function() --Only reason Im pcalling this is because of js
         if not isfile("SimpleSpy//Settings.json") then
             writefile("SimpleSpy//Settings.json",jsone(configs))
         end
-        wrap(function()
+        spawn(function()
             repeat wait(6)
                 writefile("SimpleSpy//Settings.json",jsone(configs))
             until not writefiletoggle
-        end)()
+        end)
     end
 end)
 if not suc then ErrorPrompt(("An error has occured: (%s)"):format(err)) end
@@ -378,6 +387,9 @@ end
 
 --- Reconnects bringBackOnResize if the current viewport changes and also connects it initially
 function connectResize()
+    if not workspace.CurrentCamera then
+        workspace:GetPropertyChangedSignal("CurrentCamera"):Wait()
+    end
     local lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
     workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
         lastCam:Disconnect()
@@ -420,13 +432,13 @@ end
 --- @param input InputObject
 function onBarInput(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local lastPos = UserInputService.GetMouseLocation(UserInputService)
+        local lastPos = UserInputService:GetMouseLocation()
         local mainPos = Background.AbsolutePosition
         local offset = mainPos - lastPos
         local currentPos = offset + lastPos
         if not connections["drag"] then
             connections["drag"] = RunService.RenderStepped:Connect(function()
-                local newPos = UserInputService.GetMouseLocation(UserInputService)
+                local newPos = UserInputService:GetMouseLocation()
                 if newPos ~= lastPos then
                     local currentX = (offset + newPos).X
                     local currentY = (offset + newPos).Y
@@ -470,7 +482,7 @@ function fadeOut(elements)
     local data = {}
     for _, v in next, elements do
         if typeof(v) == "Instance" and v:IsA("GuiObject") and v.Visible then
-            wrap(function()
+            spawn(function()
                 data[v] = {
                     BackgroundTransparency = v.BackgroundTransparency
                 }
@@ -489,12 +501,12 @@ function fadeOut(elements)
                     end
                     data[v] = true
                 end)
-            end)()
+            end)
         end
     end
     return function()
         for i, _ in next, data do
-            wrap(function()
+            spawn(function()
                 local properties = {
                     BackgroundTransparency = i.BackgroundTransparency
                 }
@@ -510,7 +522,7 @@ function fadeOut(elements)
                     TweenService:Create(i, TweenInfo.new(0.5), {ImageTransparency = properties.ImageTransparency}):Play()
                 end
                 i.Visible = true
-            end)()
+            end)
         end
     end
 end
@@ -590,8 +602,7 @@ function toggleMaximize()
         TweenService:Create(CodeBox, TweenInfo.new(0.5), {Size = UDim2.new(0.5, 0, 0.5, 0), Position = UDim2.new(0.25, 0, 0.25, 0)}):Play()
         TweenService:Create(disable, TweenInfo.new(0.5), {BackgroundTransparency = 0.5}):Play()
         disable.MouseButton1Click:Connect(function()
-            if UserInputService:GetMouseLocation().Y + 36 >= CodeBox.AbsolutePosition.Y and UserInputService:GetMouseLocation().Y + 36 <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y
-                and UserInputService:GetMouseLocation().X >= CodeBox.AbsolutePosition.X and UserInputService:GetMouseLocation().X <= CodeBox.AbsolutePosition.X + CodeBox.AbsoluteSize.X then
+            if UserInputService:GetMouseLocation().Y + 36 >= CodeBox.AbsolutePosition.Y and UserInputService:GetMouseLocation().Y + 36 <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y and UserInputService:GetMouseLocation().X >= CodeBox.AbsolutePosition.X and UserInputService:GetMouseLocation().X <= CodeBox.AbsolutePosition.X + CodeBox.AbsoluteSize.X then
                 return
             end
             TweenService:Create(CodeBox, TweenInfo.new(0.5), {Size = prevSize, Position = prevPos}):Play()
@@ -636,6 +647,11 @@ end
 --- Called when mouse enters SimpleSpy
 local customCursor = Create("ImageLabel",{Parent = SimpleSpy3,Visible = false,Size = UDim2.fromOffset(200, 200),ZIndex = 1e5,BackgroundTransparency = 1,Image = "",Parent = SimpleSpy3})
 function mouseEntered()
+    local con = connections["SIMPLESPY_CURSOR"]
+    if con then
+        con:Disconnect()
+        connections["SIMPLESPY_CURSOR"] = nil
+    end
     connections["SIMPLESPY_CURSOR"] = RunService.RenderStepped:Connect(function()
         UserInputService.MouseIconEnabled = not mouseInGui
         customCursor.Visible = mouseInGui
@@ -778,7 +794,7 @@ end
 function eventSelect(frame)
     if selected and selected.Log  then
         if selected.Button then
-            task.spawn(function()
+            spawn(function()
                 TweenService:Create(selected.Button, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(0, 0, 0)}):Play()
             end)
         end
@@ -790,7 +806,7 @@ function eventSelect(frame)
         end
     end
     if selected and selected.Log then
-        task.spawn(function()
+        spawn(function()
             TweenService:Create(frame.Button, TweenInfo.new(0.5), {BackgroundColor3 = Color3.fromRGB(92, 126, 229)}):Play()
         end)
         codebox:setRaw(selected.GenScript)
@@ -817,11 +833,15 @@ function makeToolTip(enable, text)
     if enable and text then
         if ToolTip.Visible then
             ToolTip.Visible = false
-            connections["ToolTip"]:Disconnect()
+            local tooltip = connections["ToolTip"]
+            if tooltip then
+                tooltip:Disconnect()
+            end
         end
         local first = true
         connections["ToolTip"] = RunService.RenderStepped:Connect(function()
-            local topLeft = Vector2.new(Mouse.X + 20, Mouse.Y + 20)
+            local MousePos = UserInputService:GetMouseLocation()
+            local topLeft = MousePos + Vector2.new(20, -15)
             local bottomRight = topLeft + ToolTip.AbsoluteSize
             local ViewportSize = workspace.CurrentCamera.ViewportSize
             local ViewportSizeX = ViewportSize.X
@@ -837,8 +857,8 @@ function makeToolTip(enable, text)
             elseif bottomRight.Y > ViewportSizeY - 35 then
                 topLeft = Vector2.new(topLeft.X, ViewportSizeY - ToolTip.AbsoluteSize.Y - 35)
             end
-            if topLeft.X <= Mouse.X and topLeft.Y <= Mouse.Y then
-                topLeft = Vector2.new(Mouse.X - ToolTip.AbsoluteSize.X - 2, Mouse.Y - ToolTip.AbsoluteSize.Y - 2)
+            if topLeft.X <= MousePos.X and topLeft.Y <= MousePos.Y then
+                topLeft = Vector2.new(MousePos.X - ToolTip.AbsoluteSize.X - 2, MousePos.Y - ToolTip.AbsoluteSize.Y - 2)
             end
             if first then
                 ToolTip.Position = UDim2.fromOffset(topLeft.X, topLeft.Y)
@@ -854,7 +874,10 @@ function makeToolTip(enable, text)
     else
         if ToolTip.Visible then
             ToolTip.Visible = false
-            connections["ToolTip"]:Disconnect()
+            local tooltip = connections["ToolTip"]
+            if tooltip then
+                tooltip:Disconnect()
+            end
         end
     end
 end
@@ -903,7 +926,7 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
         Function = func,
         Remote = cloneref(remote),
         metamethod = metamethod,
-        args = args,
+        args = configs.weaktables and setmetatable(args,{__mode="kv"}) or args,
         info = info,
         Log = RemoteTemplate,
         Button = Button,
@@ -915,16 +938,16 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
         DecompiledScripts[src] = nil
     end
     logs[#logs + 1] = log
-    local connect = Button.MouseButton1Click:Connect(function()
+    local connect = Button.MouseButton1Click:Connect(newcclosure(function()
         eventSelect(RemoteTemplate)
         log.GenScript = genScript(remote, args)
         if blocked then
-            logs[#logs].GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING TO THE SERVER BY SIMPLESPY\n\n" .. logs[#logs].GenScript
+            log.GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING TO THE SERVER BY SIMPLESPY\n\n" .. log.GenScript
         end
         if selected == log and RemoteTemplate then
             eventSelect(RemoteTemplate)
         end
-    end)
+    end))
     layoutOrderNum -= 1
     table.insert(remoteLogs, 1, {connect, RemoteTemplate})
     clean()
@@ -936,10 +959,10 @@ function genScript(remote, args)
     prevTables = {}
     local gen = ""
     if #args > 0 then
-        if not pcall(function()
-                gen = v2v({args = args}) .. "\n"
-            end)
-        then
+        local suc,err = pcall(function()
+            gen = v2v({args = args}) .. "\n"
+        end)
+        if not suc then
             gen = gen .. "-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
             if not pcall(function()
                     for i, v in next, args do
@@ -994,13 +1017,10 @@ local ufunctions = {
         return ("TweenInfo.new(%s, %s, %s, %s, %s, %s)"):format(u.Time,u.EasingStyle,u.EasingDirection,u.RepeatCount,u.Reverses,u.DelayTime)
     end,
     Ray = function(u)
-        return ("Ray.new(%s, %s)"):format(u.Origin,u.Direction)
+        return ("Ray.new(%s)"):format(Safetostring(u))
     end,
     NumberSequence = function(u)
         return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
-    end,
-    DockWidgetPluginGuiInfo = function(u)
-        return ("DockWidgetPluginGuiInfo.new(Enum.InitialDockState%s)"):format(Safetostring(u))
     end,
     ColorSequence = function(u)
         local ret = "ColorSequence.new("
@@ -1013,7 +1033,7 @@ local ufunctions = {
         return ret .. ")"
     end,
     BrickColor = function(u)
-        return ("BrickColor.new(%s)"):format(u.Number)
+        return ("BrickColor.new(%s)"):format(Safetostring(u.Number))
     end,
     NumberRange = function(u)
         return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
@@ -1023,7 +1043,7 @@ local ufunctions = {
         local size = u.CFrame.Size
         local vector1 = center - size / 2
         local vector2 = center + size / 2
-        return ("Region3.new(%s, %s)"):format(vector1,vector2)
+        return ("Region3.new(%s, %s)"):format(Safetostring(vector1),Safetostring(vector2))
     end,
     Faces = function(u)
         local faces = {}
@@ -1063,7 +1083,7 @@ local ufunctions = {
         return "RBXScriptConnection --[[RBXScriptConnection's are not supported]]"
     end,
     Vector3 = function(u)
-        return ("Vector3.new(%s, %s, %s)"):format(Safetostring(u))
+        return ("Vector3.new(%s)"):format(Safetostring(u))
     end,
     Vector2 = function(u)
         return ("Vector2.new(%s)"):format(Safetostring(u))
@@ -1075,16 +1095,16 @@ local ufunctions = {
         ("DockWidgetPluginGuiInfo(%s, %s, %s, %s, %s, %s, %s)"):format("Enum.InitialDockState.Right", v2s(u.InitialEnabled), v2s(u.InitialEnabledShouldOverrideRestore), v2s(u.FloatingXSize), v2s(u.FloatingYSize), v2s(u.MinWidth), v2s(u.MinHeight))
     end,
     PathWaypoint = function(u)
-        return ("PathWaypoint.new(%s, %s)"):format(u.Position, u.Action)
+        return ("PathWaypoint.new(%s, %s)"):format(v2s(u.Position), v2s(u.Action), waypoint.Label)
     end,
     UDim = function(u)
-        return ("UDim.new(%s, %s)"):format(u.Scale, u.Offset)
+        return ("UDim.new(%s)"):format(Safetostring(u))
     end,
     UDim2 = function(u)
-        return ("UDim2.new(%s, %s)"):format(u.X, u.Y)
+        return ("UDim2.new(%s"):format(Safetostring(u))
     end,
     Rect = function(u)
-        return ("Rect.new(%s, %s)"):format(u.Min, u.Max)
+        return ("Rect.new(%s)"):format(Safetostring(u))
     end,
     Color3 = function(u)
         return ("Color3.fromRGB(%s, %s, %s)"):format(u.r*255,u.g*255,u.b*255)
@@ -1115,12 +1135,14 @@ local typeofv2sfunctions = {
         return t2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     end,
     Instance = function(v)
-        return i2p(cloneref(v),v == Players.LocalPlayer)
+        local instance = cloneref(v)
+        return i2p(instance,generation[GetDebugId(instance)])
     end,
     userdata = function(v)
         return "newproxy(true)"
     end
 }
+
 local typev2sfunctions = {
     userdata = function(v,vtypeof)
         if ufunctions[vtypeof] then
@@ -1281,7 +1303,10 @@ end
 
 --- instance-to-path
 --- @param i userdata
-function i2p(i,check)
+function i2p(i,customgen)
+    if customgen then
+        return customgen
+    end
     local player = getplayer(i)
     local parent = i
     local out = ""
@@ -1309,7 +1334,7 @@ function i2p(i,check)
             if parent and parent.Parent == game then
                 if SafeGetService(parent.ClassName) then
                     if lower(parent.ClassName) == "workspace" then
-                        return "workspace" .. out
+                        return "workspace"..out
                     else
                         return 'game:GetService("' .. parent.ClassName .. '")' .. out
                     end
@@ -1323,8 +1348,6 @@ function i2p(i,check)
             elseif not parent.Parent then
                 getnilrequired = true
                 return 'getNil(' .. formatstr(parent.Name) .. ', "' .. parent.ClassName .. '")' .. out
-            elseif check then
-                out = ".LocalPlayer" .. out
             else
                 if parent.Name:match("[%a_]+[%w_]*") ~= parent.Name then
                     out = ':WaitForChild(' .. formatstr(parent.Name) .. ')' .. out
@@ -1548,43 +1571,35 @@ function taskscheduler()
     end
 end
 
-local function tablecheck(tabletocheck,instance)
-    local old = get_thread_identity()
-    set_thread_identity(8)
-    local checked = tabletocheck[GetDebugId(instance)] or tabletocheck[instance.Name]
-    set_thread_identity(old)
-    return checked
+local function tablecheck(tabletocheck,instance,id)
+    return tabletocheck[id] or tabletocheck[instance.Name]
 end
 
-function remoteHandler(methodName, remote, args, info, callingscript, metamethod, blocked)
+function remoteHandler(methodName, remote, args, info, callingscript, metamethod, blocked, id)
     if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
         if configs.autoblock then
-            if excluding[remote] then
+            if excluding[id] then
                 return
             end
-            if not history[remote] then
-                history[remote] = {badOccurances = 0, lastCall = tick()}
+            if not history[id] then
+                history[id] = {badOccurances = 0, lastCall = tick()}
             end
-            if tick() - history[remote].lastCall < 1 then
-                history[remote].badOccurances += 1
+            if tick() - history[id].lastCall < 1 then
+                history[id].badOccurances += 1
                 return
             else
-                history[remote].badOccurances = 0
+                history[id].badOccurances = 0
             end
-            if history[remote].badOccurances > 3 then
-                excluding[remote] = true
+            if history[id].badOccurances > 3 then
+                excluding[id] = true
                 return
             end
-            history[remote].lastCall = tick()
+            history[id].lastCall = tick()
         end
 
         local functionInfoStr = info and info.func or "--Function Info is disabled"
 
-        if lower(methodName) == "fireserver" then
-            newRemote("event", remote.Name, args, remote, functionInfoStr, blockcheck, callingscript, metamethod,info)
-        elseif lower(methodName) == "invokeserver" then
-            newRemote("function", remote.Name, args, remote, functionInfoStr, blockcheck, callingscript, metamethod,info)
-        end
+        newRemote(lower(methodName) == "fireserver" and "event" or "function", remote.Name, args, remote, functionInfoStr, blockcheck, callingscript, metamethod,info)
     end
 end
 
@@ -1600,22 +1615,27 @@ local newindex = function(method,originalfunction,...)
         if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
 
         if methodtypes[lower(method)] then
-            local args = setmetatable({select(2,...)},{__mode="kv"})
+            local old = get_thread_identity()
+            set_thread_identity(8)
             remote = cloneref(remote)
 
-            local blockcheck = tablecheck(blocklist,remote)
-            if not tablecheck(blacklist,remote) then
+            local id = GetDebugId(remote)
+            local blockcheck = tablecheck(blocklist,remote,id)
+            if not tablecheck(blacklist,remote,id) then
+                local args = {select(2,...)}
                 local info
                 local callingscript
 
                 if configs.funcEnabled then
-                    info = getinfo(getinfolevel+1)
-                    callingscript = cloneref(getcallingscript()) or nil
+                    info = getinfo(getinfolevel)
+                    local calling = getcallingscript()
+                    callingscript = calling and cloneref(calling) or nil
                 end
-                wrap(function()
-                    schedule(remoteHandler, method, remote, args, info, callingscript, "__index",blockcheck)
-                end)()
+                spawn(function()
+                    schedule(remoteHandler, method, remote, args, info, callingscript, "__index",blockcheck,id)
+                end)
             end
+            set_thread_identity(old)
             if blockcheck then return end
         end
     end
@@ -1627,24 +1647,28 @@ local newnamecall = newcclosure(function(...)
     if typeof(remote) == 'Instance' then
         if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
         local method = getnamecallmethod()
-        
-        if methodtypes[lower(method)] then
+        if method and methodtypes[lower(method)] then
+            local old = get_thread_identity()
+            set_thread_identity(8)
             remote = cloneref(remote)
-            local blockcheck = tablecheck(blocklist,remote)
-            if not tablecheck(blacklist,remote) then
-
-                local args = setmetatable({select(2,...)},{__mode="kv"})
+            
+            local id = GetDebugId(remote)
+            local blockcheck = tablecheck(blocklist,remote,id)
+            if not tablecheck(blacklist,remote,id) then
+                local args = {select(2,...)}
                 local info
                 local callingscript
 
                 if configs.funcEnabled then
                     info = getinfo(getinfolevel)
-                    callingscript = cloneref(getcallingscript()) or nil
+                    local calling = getcallingscript()
+                    callingscript = calling and cloneref(calling) or nil
                 end
-                wrap(function()
-                    schedule(remoteHandler, method, remote, args, info, callingscript, "__namecall",blockcheck)
-                end)()
+                spawn(function()
+                    schedule(remoteHandler, method, remote, args, info, callingscript, "__namecall",blockcheck,id)
+                end)
             end
+            set_thread_identity(old)
             if blockcheck then return end
         end
     end
@@ -1659,25 +1683,44 @@ local newInvokeServer = newcclosure(function(...)
     return newindex("InvokeServer",originalFunction,...)
 end)
 
---- Toggles on and off the remote spy
-function toggleSpy()
-    if not toggle then
-        if hookmetamethod then
-            local oldNamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
-            originalnamecall = originalnamecall or function(...)
-                return oldNamecall(...)
-            end
-        end
-        originalEvent = hookfunction(remoteEvent.FireServer, clonefunction(newFireServer))
-        originalFunction = hookfunction(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
+local function disablehooks()
+    if synv3 then
+        unhook(mtnamecall,originalnamecall)
+        unhook(remoteEvent.FireServer, originalEvent)
+        unhook(remoteFunction.InvokeServer, originalFunction)
     else
         if hookmetamethod then
-			if originalnamecall then
-				hookmetamethod(game, "__namecall", clonefunction(originalnamecall))
-			end
+            hookmetamethod(game,"__namecall",originalnamecall)
+        else
+            hookfunction(mtnamecall,originalnamecall)
         end
         hookfunction(remoteEvent.FireServer, originalEvent)
         hookfunction(remoteFunction.InvokeServer, originalFunction)
+    end
+end
+
+--- Toggles on and off the remote spy
+function toggleSpy()
+    if not toggle then
+        local oldnamecall
+        if synv3 then
+            oldnamecall = hook(mtnamecall,clonefunction(newnamecall))
+            originalEvent = hook(remoteEvent.FireServer, clonefunction(newFireServer))
+            originalFunction = hook(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
+        else
+            if hookmetamethod then
+                oldnamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
+            else
+                oldnamecall = hookfunction(mtnamecall,clonefunction(newnamecall))
+            end
+            originalEvent = hookfunction(remoteEvent.FireServer, clonefunction(newFireServer))
+            originalFunction = hookfunction(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
+        end
+        originalnamecall = originalnamecall or function(...)
+            return oldnamecall(...)
+        end
+    else
+        disablehooks()
     end
 end
 
@@ -1688,7 +1731,7 @@ function toggleSpyMethod()
 end
 
 --- Shuts down the remote spy
-function shutdown()
+local function shutdown()
     if schedulerconnect then
         schedulerconnect:Disconnect()
     end
@@ -1698,11 +1741,7 @@ function shutdown()
     clear(connections)
     clear(logs)
     clear(remoteLogs)
-    if originalnamecall then
-        hookmetamethod(game, "__namecall", originalnamecall)
-    end
-    hookfunction(remoteEvent.FireServer, originalEvent)
-    hookfunction(remoteFunction.InvokeServer, originalFunction)
+    disablehooks()
     SimpleSpy3:Destroy()
     UserInputService.MouseIconEnabled = true
     getgenv().SimpleSpyExecuted = false
@@ -1711,22 +1750,20 @@ end
 
 -- main
 if not getgenv().SimpleSpyExecuted then
-    local succeeded, err = pcall(function()
+    local succeeded,err = pcall(function()
         if not RunService:IsClient() then
             error("SimpleSpy cannot run on the server!")
         end
         getgenv().SimpleSpyShutdown = shutdown
-        ContentProvider:PreloadAsync({"rbxassetid://6065821980", "rbxassetid://6065774948", "rbxassetid://6065821086", "rbxassetid://6065821596", ImageLabel, ImageLabel_2, ImageLabel_3})
-        -- if gethui then configs.funcEnabled = false end
         onToggleButtonClick()
         if not hookmetamethod then
             ErrorPrompt("Simple Spy V3 will not function to it's fullest capablity due to your executor not supporting hookmetamethod.",true)
         end
         codebox = Highlight.new(CodeBox)
-        wrap(function()
+        spawn(function()
             local suc,err = pcall(game.HttpGet,game,"https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua")
             codebox:setRaw((suc and err) or "")
-        end)()
+        end)
         getgenv().SimpleSpy = SimpleSpy
         getgenv().getNil = function(name,class)
 			for _,v in next, getnilinstances() do
@@ -1735,6 +1772,14 @@ if not getgenv().SimpleSpyExecuted then
 				end
 			end
 		end
+        Background.MouseEnter:Connect(function(...)
+            mouseInGui = true
+            mouseEntered()
+        end)
+        Background.MouseLeave:Connect(function(...)
+            mouseInGui = false
+            mouseEntered()
+        end)
         TextLabel:GetPropertyChangedSignal("Text"):Connect(scaleToolTip)
         -- TopBar.InputBegan:Connect(onBarInput)
         MinimizeButton.MouseButton1Click:Connect(toggleMinimize)
@@ -1748,31 +1793,27 @@ if not getgenv().SimpleSpyExecuted then
         table.insert(connections, UserInputService.InputBegan:Connect(backgroundUserInput))
         connectResize()
         SimpleSpy3.Enabled = true
-        wrap(function()
+        spawn(function()
             delay(1,onToggleButtonUnhover)
-        end)()
+        end)
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
         SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or CoreGui
-        wrap(function()
-            local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPLayer
-            Mouse = lp:GetMouse()
-            oldIcon = Mouse.Icon
-            table.insert(connections, Mouse.Move:Connect(mouseMoved))
-        end)()
+        spawn(function()
+            local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() and Players.LocalPlayer
+            generation = {
+                [GetDebugId(lp)] = 'game:GetService("Players").LocalPlayer',
+                [GetDebugId(lp:GetMouse())] = 'game:GetService("Players").LocalPlayer:GetMouse',
+                [GetDebugId(game)] = "game",
+                [GetDebugId(workspace)] = "workspace"
+            }
+        end)
     end)
     if succeeded then
         getgenv().SimpleSpyExecuted = true
         writefiletoggle = true
     else
-        if hookmetamethod and original then
-            hookmetamethod(game, "__namecall", original)
-        end
-        if hookfunction then
-            hookfunction(remoteEvent.FireServer, originalEvent)
-            hookfunction(remoteFunction.InvokeServer, originalFunction)
-        end
-        SimpleSpy3:Destroy()
+        shutdown()
         ErrorPrompt("An error has occured:\n"..Safetostring(err))
         return
     end
@@ -1879,7 +1920,8 @@ newButton(
                     selected.Function = {
                         info = getinfo(func),
                         constants = islclosure(func) and setmetatable(getconstants(func), {__mode="kv"}) or "nil --Lua Closure expected got C Closure",
-                        upvalues = setmetatable(getupvalues(func), {__mode="kv"}) --Thank you GameGuy#5286
+                        upvalues = setmetatable(getupvalues(func), {__mode="kv"}), --Thank you GameGuy#5286
+                        script = rawget(getfenv(selected.info.func),"script")
                     }
                     
                     if configs.advancedinfo then
@@ -1920,7 +1962,7 @@ newButton(
     function() return "Click to clear logs" end,
     function()
         TextLabel.Text = "Clearing..."
-        logs = {}
+        clear(logs)
         for i,v in next, LogList:GetChildren() do
             if not v:IsA("UIListLayout") then
                 v:Destroy()
@@ -2058,6 +2100,14 @@ end,
 function()
     configs.advancedinfo = not configs.advancedinfo
     TextLabel.Text = ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
+end)
+
+newButton("Weak Tables",function()
+    return ("[%s] [SECURITY] sets the arguments table to a weak table. Can cause argument loss."):format(configs.weaktables and "ENABLED" or "DISABLED")
+end,
+function()
+    configs.weaktables = not configs.weaktables
+    TextLabel.Text = ("[%s] [SECURITY] sets the arguments table to a weak table. Can cause argument loss."):format(configs.weaktables and "ENABLED" or "DISABLED")
 end)
 
 if syn and syn.request then request = syn.request end
