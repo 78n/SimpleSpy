@@ -1698,8 +1698,8 @@ local function disablehooks()
         else
             hookfunction(mt.__namecall,originalnamecall)
         end
-        hookfunction(remoteEvent.FireServer, originalEvent)
-        hookfunction(remoteFunction.InvokeServer, originalFunction)
+        hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
+        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
     end
 end
 
@@ -1709,8 +1709,8 @@ function toggleSpy()
         local oldnamecall
         if synv3 then
             oldnamecall = hook(mt.__namecall,clonefunction(newnamecall))
-            originalEvent = hook(remoteEvent.FireServer, clonefunction(newFireServer))
-            originalFunction = hook(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
+            originalEvent = hook(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
+            originalFunction = hook(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
         else
             if hookmetamethod then
                 oldnamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
