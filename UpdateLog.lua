@@ -1,9 +1,9 @@
 Update Logs:
 Made syn v3 undetected
 improved security
+improved some hooking stuff
 fixed bugs (idk what)
 rewrote some back end stuff
-no longer using old instances (dumb of me to in the first place)
 
 todo:
 rewrite highlight system (soon:tm:)
