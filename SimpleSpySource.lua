@@ -14,7 +14,6 @@ local configs = {
 
 local game = game
 local mt = getrawmetatable(game)
-local mtnamecall = rawget(mt,"__namecall")
 local workspace = workspace
 local table = table
 local math = math
@@ -217,6 +216,10 @@ local remoteEvent = Instance.new("RemoteEvent",Storage)
 local remoteFunction = Instance.new("RemoteFunction",Storage)
 local originalEvent = remoteEvent.FireServer
 local originalFunction = remoteFunction.InvokeServer
+
+local oldhooks = {
+    
+}
 
 local methodtypes = {
     ["fireserver"] = true,
@@ -938,7 +941,7 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
         DecompiledScripts[src] = nil
     end
     logs[#logs + 1] = log
-    local connect = Button.MouseButton1Click:Connect(newcclosure(function()
+    local connect = Button.MouseButton1Click:Connect(function()
         eventSelect(RemoteTemplate)
         log.GenScript = genScript(remote, args)
         if blocked then
@@ -947,7 +950,7 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
         if selected == log and RemoteTemplate then
             eventSelect(RemoteTemplate)
         end
-    end))
+    end)
     layoutOrderNum -= 1
     table.insert(remoteLogs, 1, {connect, RemoteTemplate})
     clean()
@@ -959,11 +962,10 @@ function genScript(remote, args)
     prevTables = {}
     local gen = ""
     if #args > 0 then
-        local suc,err = pcall(function()
+        xpcall(function()
             gen = v2v({args = args}) .. "\n"
-        end)
-        if not suc then
-            gen = gen .. "-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
+        end,function(err)
+            gen = gen.."-- An error has occured:\n--"..err.."\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
             if not pcall(function()
                     for i, v in next, args do
                         if type(i) ~= "Instance" and type(i) ~= "userdata" then
@@ -990,7 +992,7 @@ function genScript(remote, args)
             then
                 gen = gen .. "}\n-- Legacy tableToString failure! Unable to decompile."
             end
-        end
+        end)
         if not remote:IsDescendantOf(game) and not getnilrequired then
             gen = "function getNil(name,class) for _,v in next, getnilinstances()do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
         end
@@ -1014,7 +1016,7 @@ end
 
 local ufunctions = {
     TweenInfo = function(u)
-        return ("TweenInfo.new(%s, %s, %s, %s, %s, %s)"):format(u.Time,u.EasingStyle,u.EasingDirection,u.RepeatCount,u.Reverses,u.DelayTime)
+        return ("TweenInfo.new(%s, %s, %s, %s, %s, %s)"):format(Safetostring(u.Time),Safetostring(u.EasingStyle),Safetostring(u.EasingDirection),Safetostring(u.RepeatCount),Safetostring(u.Reverses),Safetostring(u.DelayTime))
     end,
     Ray = function(u)
         return ("Ray.new(%s)"):format(Safetostring(u))
@@ -1040,10 +1042,9 @@ local ufunctions = {
     end,
     Region3 = function(u)
         local center = u.CFrame.Position
-        local size = u.CFrame.Size
-        local vector1 = center - size / 2
-        local vector2 = center + size / 2
-        return ("Region3.new(%s, %s)"):format(Safetostring(vector1),Safetostring(vector2))
+        local centersize = u.Size
+        
+        return ("Region3.new(%s, %s)"):format(v2s(center-centersize/2),v2s(center+centersize/2))
     end,
     Faces = function(u)
         local faces = {}
@@ -1091,11 +1092,8 @@ local ufunctions = {
     CFrame = function(u)
         return ("CFrame.new(%s)"):format(Safetostring(u))
     end,
-    DockWidgetPluginGuiInfo = function(u)
-        ("DockWidgetPluginGuiInfo(%s, %s, %s, %s, %s, %s, %s)"):format("Enum.InitialDockState.Right", v2s(u.InitialEnabled), v2s(u.InitialEnabledShouldOverrideRestore), v2s(u.FloatingXSize), v2s(u.FloatingYSize), v2s(u.MinWidth), v2s(u.MinHeight))
-    end,
     PathWaypoint = function(u)
-        return ("PathWaypoint.new(%s, %s)"):format(v2s(u.Position), v2s(u.Action), waypoint.Label)
+        return ("PathWaypoint.new(%s, %s)"):format(v2s(u.Position), v2s(u.Action), u.Label)
     end,
     UDim = function(u)
         return ("UDim.new(%s)"):format(Safetostring(u))
@@ -1628,6 +1626,9 @@ local newindex = function(method,originalfunction,...)
 
                 if configs.funcEnabled then
                     info = getinfo(getinfolevel)
+                    if not islclosure then
+                        info = getinfo(getinfolevel+1)
+                    end
                     local calling = getcallingscript()
                     callingscript = calling and cloneref(calling) or nil
                 end
@@ -1685,14 +1686,17 @@ end)
 
 local function disablehooks()
     if synv3 then
-        unhook(mtnamecall,originalnamecall)
-        unhook(remoteEvent.FireServer, originalEvent)
-        unhook(remoteFunction.InvokeServer, originalFunction)
+        unhook(mt.__namecall,originalnamecall)
+        unhook(Instance.new("RemoteEvent").FireServer, originalEvent)
+        unhook(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+        restorefunction(originalnamecall)
+        restorefunction(originalEvent)
+        restorefunction(originalFunction)
     else
         if hookmetamethod then
             hookmetamethod(game,"__namecall",originalnamecall)
         else
-            hookfunction(mtnamecall,originalnamecall)
+            hookfunction(mt.__namecall,originalnamecall)
         end
         hookfunction(remoteEvent.FireServer, originalEvent)
         hookfunction(remoteFunction.InvokeServer, originalFunction)
@@ -1704,17 +1708,17 @@ function toggleSpy()
     if not toggle then
         local oldnamecall
         if synv3 then
-            oldnamecall = hook(mtnamecall,clonefunction(newnamecall))
+            oldnamecall = hook(mt.__namecall,clonefunction(newnamecall))
             originalEvent = hook(remoteEvent.FireServer, clonefunction(newFireServer))
             originalFunction = hook(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
         else
             if hookmetamethod then
                 oldnamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
             else
-                oldnamecall = hookfunction(mtnamecall,clonefunction(newnamecall))
+                oldnamecall = hookfunction(mt.__namecall,clonefunction(newnamecall))
             end
-            originalEvent = hookfunction(remoteEvent.FireServer, clonefunction(newFireServer))
-            originalFunction = hookfunction(remoteFunction.InvokeServer, clonefunction(newInvokeServer))
+            originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
+            originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
         end
         originalnamecall = originalnamecall or function(...)
             return oldnamecall(...)
