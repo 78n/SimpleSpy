@@ -1,5 +1,12 @@
 Update Logs:
-did a lot of fixing with generation
-added more hooking methods (not perfect I'm working on it)
-added a weak tables toggle because setting a table to weak can cause dataloss
-^^ is a temp fix I will be working on a perm fix soon
+Made syn v3 undetected
+improved security
+fixed bugs (idk what)
+rewrote some back end stuff
+no longer using old instances (dumb of me to in the first place)
+
+todo:
+rewrite highlight system (soon:tm:)
+table cloning (instead of weak tables)
+rewrite instance to string function (kinda scuffed right now)
+get toon to update infinite yield's rspy (IMPOSSIBLE)
