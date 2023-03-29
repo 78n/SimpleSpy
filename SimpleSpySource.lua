@@ -2114,6 +2114,14 @@ function()
     TextLabel.Text = ("[%s] [SECURITY] sets the arguments table to a weak table. Can cause argument loss."):format(configs.weaktables and "ENABLED" or "DISABLED")
 end)
 
+newButton("Get Debug Id",function() return "Copies the coded string of the Instances DebugId used internally by Roblox." end,
+function()
+    if selected then
+        setclipboard(GetDebugId(selected.Remote))
+        TextLabel.Text = "Copied debug id to your clipboard"
+    end
+end)
+
 if syn and syn.request then request = syn.request end
 newButton("Join Discord",function()
     return "Joins The Simple Spy Discord"
