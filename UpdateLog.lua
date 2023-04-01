@@ -1,3 +1,9 @@
+Curent udpaet:
+Redeidned the ui
+added debugid to function info
+  added scripts stfuyf to function ifno
+    others tfuff
+
 Update Logs:
 Made syn v3 undetected
 improved security
