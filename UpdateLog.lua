@@ -1,15 +1,5 @@
-Curent udpaet:
-Redeidned the ui
-added debugid to function info
-  added scripts stfuyf to function ifno
-    others tfuff
-
-Update Logs:
-Made syn v3 undetected
-improved security
-improved some hooking stuff
-fixed bugs (idk what)
-rewrote some back end stuff
+Update:
+reverted update because apparently people didnt like the ui redesign
 
 todo:
 rewrite highlight system (soon:tm:)
