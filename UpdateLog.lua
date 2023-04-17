@@ -1,3 +1,8 @@
+Update:
+Added a beta link
+dont expect it to be stable
+https://github.com/78n/SimpleSpy/blob/main/SimpleSpyBeta.lua
+
 Info update:
 Almost ready to update stuff
 I rewrote function info too and other junk
