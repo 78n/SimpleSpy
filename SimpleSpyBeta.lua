@@ -1139,6 +1139,12 @@ local typeofv2sfunctions = {
         return i2p(instance,generation[GetDebugId(instance)])
     end,
     userdata = function(v)
+        if configs.advancedinfo then
+            if getrawmetatable(v) then
+                return "newproxy(true)"
+            end
+            return "newproxy(false)"
+        end
         return "newproxy(true)"
     end
 }
