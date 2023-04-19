@@ -28,6 +28,7 @@ local oth = syn and syn.oth
 local unhook = oth and oth.unhook
 local hook = oth and oth.hook
 local lower = string.lower
+local byte = string.byte
 local round = math.round
 local running = coroutine.running
 local resume = coroutine.resume
@@ -1170,6 +1171,7 @@ function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     else
         tI[1] += 1
     end
+
     if typeofv2sfunctions[vtypeof] then
         return typeofv2sfunctions[vtypeof](v, l, p, n, vtv, i, pt, path, tables, tI)
     elseif typev2sfunctions[vtype] then
@@ -1281,6 +1283,8 @@ end
 
 --- function-to-string
 function f2s(f)
+    --[[
+        No real point in having this
     for k, x in next, getgenv() do
         local isgucci, gpath
         if rawequal(x, f) then
@@ -1295,7 +1299,7 @@ function f2s(f)
                 return "getgenv()[" .. v2s(k) .. "]" .. gpath
             end
         end
-    end
+    end]]
     if configs.funcEnabled then
         local funcname = debug.info(f,"n")
         
@@ -1318,7 +1322,7 @@ function i2p(i,customgen)
     if parent == nil then
         return "nil"
     elseif player then
-        while task.wait() do
+        while true do
             if parent and parent == player.Character then
                 if player == Players.LocalPlayer then
                     return 'game:GetService("Players").LocalPlayer.Character' .. out
@@ -1332,10 +1336,11 @@ function i2p(i,customgen)
                     out = "." .. parent.Name .. out
                 end
             end
+            task.wait()
             parent = parent.Parent
         end
     elseif parent ~= game then
-        while task.wait() do
+        while true do
             if parent and parent.Parent == game then
                 if SafeGetService(parent.ClassName) then
                     if lower(parent.ClassName) == "workspace" then
@@ -1364,6 +1369,7 @@ function i2p(i,customgen)
                 return 'game:GetService("Players").LocalPlayer'..out
             end
             parent = parent.Parent
+            task.wait()
         end
     else
         return "game"
@@ -1442,6 +1448,21 @@ local function isFinished(tableinquestion)
     return true
 end
 
+local specialstrings = {
+    ["\n"] = function(thread,index)
+        resume(thread,index,"\\n")
+    end,
+    ["\t"] = function(thread,index)
+        resume(thread,index,"\\t")
+    end,
+    ["\\"] = function(thread,index)
+        resume(thread,index,"\\\\")
+    end,
+    ['"'] = function(thread,index)
+        resume(thread,index,"\\\"")
+    end
+}
+
 function handlespecials(s, indentation)
     local i = 0
     local n = 1
@@ -1449,45 +1470,41 @@ function handlespecials(s, indentation)
     local coroutineFunc = function(i, r)
         s = s:sub(0, i - 1) .. r .. s:sub(i + 1, -1)
     end
+    local timeout = 0
     repeat
-        i = i + 1
+        i += 1
+        if timeout >= 10 then
+            scheduleWait()
+            timeout = 0
+        end
         local char = s:sub(i, i)
-        if string.byte(char) then
+
+        if byte(char) then
+            timeout += 1
             local c = create(coroutineFunc)
             table.insert(coroutines, c)
-            if char == "\n" then
-                resume(c, i, "\\n")
-                -- s = s:sub(0, i - 1) .. "\\n" .. s:sub(i + 1, -1)
-                i = i + 1
-            elseif char == "\t" then
-                resume(c, i, "\\t")
-                -- s = s:sub(0, i - 1) .. "\\t" .. s:sub(i + 1, -1)
-                i = i + 1
-            elseif char == "\\" then
-                resume(c, i, "\\\\")
-                -- s = s:sub(0, i - 1) .. "\\\\" .. s:sub(i + 1, -1)
-                i = i + 1
-            elseif char == '"' then
-                resume(c, i, "\\\"")
-                -- s = s:sub(0, i - 1) .. '\\"' .. s:sub(i + 1, -1)
-                i = i + 1
-            elseif string.byte(char) > 126 or string.byte(char) < 32 then
-                resume(c, i, "\\" .. string.byte(char))
-                -- s = s:sub(0, i - 1) .. "\\" .. string.byte(char) .. s:sub(i + 1, -1)
-                i = i + #Safetostring(string.byte(char))
+            local specialfunc = specialstrings[char]
+
+            if specialfunc then
+                specialfunc(c,i)
+                i += 1
+            elseif byte(char) > 126 or byte(char) < 32 then
+                resume(c, i, "\\" .. byte(char))
+                -- s = s:sub(0, i - 1) .. "\\" .. byte(char) .. s:sub(i + 1, -1)
+                i += #Safetostring(byte(char))
             end
             if i >= n * 100 then
                 local extra = string.format('" ..\n%s"', string.rep(" ", indentation + indent))
                 s = s:sub(0, i) .. extra .. s:sub(i + 1, -1)
                 i += #extra
                 n += 1
-                scheduleWait()
             end
         end
     until char == "" or i > (getgenv().SimpleSpyMaxStringSize or 10000)
     while not isFinished(coroutines) do
         RunService.Heartbeat:Wait()
     end
+    clear(coroutines)
     if i > (getgenv().SimpleSpyMaxStringSize or 10000) then
         s = string.sub(s, 0, getgenv().SimpleSpyMaxStringSize or 10000)
         return s, true
@@ -1928,7 +1945,11 @@ newButton(
         if selected then
             local func = selected.Function
             if func then
-                if typeof(func) ~= 'string' then
+                local typeoffunc = typeof(func)
+                if typeoffunc == "table" then
+                    return codebox:setRaw("--[[Generating Function Info please wait]]")
+                end
+                if typeoffunc ~= 'string' then
                     codebox:setRaw("--[[Generating Function Info please wait]]")
                     RunService.Heartbeat:Wait()
                     local lclosure = islclosure(func)
@@ -1937,7 +1958,7 @@ newButton(
 
                     selected.Function = {
                         info = getinfo(func),
-                        constants = lclosure and setmetatable(getconstants(func), {__mode="kv"}) or "nil --Lua Closure expected got C Closure",
+                        constants = lclosure and setmetatable(getconstants(func), {__mode="kv"}) or "N/A --Lua Closure expected got C Closure",
                         upvalues = setmetatable(getupvalues(func), {__mode="kv"}), --Thank you GameGuy#5286
                         script = {
                             SourceScript = SourceScript or 'nil',
@@ -1951,21 +1972,21 @@ newButton(
                         selected.Function["advancedinfo"] = {
                             Metamethod = selected.metamethod,
                             DebugId = {
-                                SourceScriptDebugId = SourceScript and typeof(SourceScript) == "Instance" and GetDebugId(SourceScript) or "nil",
-                                CallingScriptDebugId = CallingScript and typeof(SourceScript) == "Instance" and GetDebugId(CallingScript) or "nil",
+                                SourceScriptDebugId = SourceScript and typeof(SourceScript) == "Instance" and GetDebugId(SourceScript) or "N/A",
+                                CallingScriptDebugId = CallingScript and typeof(SourceScript) == "Instance" and GetDebugId(CallingScript) or "N/A",
                                 RemoteDebugId = GetDebugId(Remote)
                             },
-                            Protos = lclosure and setmetatable(getprotos(func), {__mode="kv"}) or "nil --Lua Closure expected got C Closure"
+                            Protos = lclosure and setmetatable(getprotos(func), {__mode="kv"}) or "N/A --Lua Closure expected got C Closure"
                         }
                         if Remote:IsA("RemoteFunction") then
-                            selected.Function["advancedinfo"]["OnClientInvoke"] = getcallbackmember and (getcallbackmember(Remote,"OnClientInvoke") or "nil") or "nil --Missing function getcallbackmember"
+                            selected.Function["advancedinfo"]["OnClientInvoke"] = getcallbackmember and (getcallbackmember(Remote,"OnClientInvoke") or "N/A") or "N/A --Missing function getcallbackmember"
                         else
                             if getconnections then
                                 selected.Function["advancedinfo"]["OnClientEvents"] = {}
                                 for i,v in next, getconnections(Remote.OnClientEvent) do
                                     selected.Function["advancedinfo"]["OnClientEvents"][i] = {
-                                        Function = v.Function,
-                                        State = v.State
+                                        Function = v.Function or "N/A",
+                                        State = v.State or "N/A"
                                     }
                                 end
                             end
