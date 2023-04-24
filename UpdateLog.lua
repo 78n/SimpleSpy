@@ -1,11 +1,12 @@
 Update:
-Added a beta link
-dont expect it to be stable
-https://github.com/78n/SimpleSpy/blob/main/SimpleSpyBeta.lua
+Updated the beta link with the newest current version of simple spy
+no longer do you have to use weak tables it now has deepclone
+I havent tested this much due to the whole byfron situation
+so dont expect it to be very table
+next update I'll maybe try and add return value logging finally
 
-Info update:
-Almost ready to update stuff
-I rewrote function info too and other junk
+Beta link:
+https://github.com/78n/SimpleSpy/blob/main/SimpleSpyBeta.lua
 
 todo:
 add return value logging
