@@ -69,6 +69,25 @@ local function SafeGetService(service)
     return cloneref(game:GetService(service))
 end
 
+local function deepclone(args: table, copies: table)
+    copies = copies or {}
+    local copy
+    if typeof(args) == 'table' then
+        if copies[args] then
+            copy = copies[args]
+        else
+            copy = {}
+            copies[args] = copy
+            for i, v in next, args do
+                copy[deepclone(i, copies)] = deepclone(v, copies)
+            end
+        end
+    else
+        copy = args
+    end
+    return copy
+end
+
 local function Safetostring(userdata)
 	if type(userdata) == "table" or typeof(userdata) == "userdata" then
 		local rawmetatable = getrawmetatable(userdata)
@@ -911,26 +930,6 @@ function newButton(name, description, onClick)
         onClick(FunctionTemplate, ...)
     end)
     updateFunctionCanvas()
-end
-
-local function deepclone(args: table, copies: table)
-    copies = copies or {}
-    local copy
-    if typeof(args) == 'table' then
-        local copyarg = copies[args]
-        if copyarg then
-            copy = copyarg
-        else
-            copy = {}
-            copyarg = copy
-            for i, v in next, args do
-                copy[deepclone(i, copies)] = deepclone(v, copies)
-            end
-        end
-    else
-        copy = args
-    end
-    return copy
 end
 
 --- Adds new Remote to logs
@@ -1981,7 +1980,7 @@ newButton(
                     selected.Function = {
                         info = getinfo(func),
                         constants = lclosure and setmetatable(getconstants(func), {__mode="kv"}) or "N/A --Lua Closure expected got C Closure",
-                        upvalues = setmetatable(getupvalues(func), {__mode="kv"}), --Thank you GameGuy#5286
+                        upvalues = deepclone(getupvalues(func)),
                         script = {
                             SourceScript = SourceScript or 'nil',
                             CallingScript = CallingScript or 'nil'
@@ -1998,7 +1997,7 @@ newButton(
                                 CallingScriptDebugId = CallingScript and typeof(SourceScript) == "Instance" and GetDebugId(CallingScript) or "N/A",
                                 RemoteDebugId = GetDebugId(Remote)
                             },
-                            Protos = lclosure and setmetatable(getprotos(func), {__mode="kv"}) or "N/A --Lua Closure expected got C Closure"
+                            Protos = lclosure and deepclone(getprotos(func)) or "N/A --Lua Closure expected got C Closure"
                         }
                         if Remote:IsA("RemoteFunction") then
                             selected.Function["advancedinfo"]["OnClientInvoke"] = getcallbackmember and (getcallbackmember(Remote,"OnClientInvoke") or "N/A") or "N/A --Missing function getcallbackmember"
