@@ -948,6 +948,7 @@ function newRemote(type, name, args, remote, func, blocked, src, metamethod,info
 
     local log = {
         Name = name,
+        a = oldnamecall,
         Function = func,
         Remote = cloneref(remote),
         DebugId = id,
@@ -1929,14 +1930,18 @@ newButton("Run Code",
         local Remote = selected and selected.Remote
         if Remote then
             TextLabel.Text = "Executing..."
-            local succeeded,returnvalue = pcall(function()
-                return Remote[instancetypes[Remote.ClassName]](Remote,unpack(selected.args))
-            end)
-            if succeeded then
+            xpcall(function()
+                local returnvalue
+                if Remote:IsA("RemoteEvent") then
+                    returnvalue = Remote:FireServer(unpack(selected.args))
+                else
+                    returnvalue = Remote:InvokeServer(unpack(selected.args))
+                end
+
                 TextLabel.Text = ("Executed successfully!\n%s"):format(v2s(returnvalue))
-            else
-                TextLabel.Text = ("Execution error!\n%s"):format(returnvalue)
-            end
+            end,function(err)
+                TextLabel.Text = ("Execution error!\n%s"):format(err)
+            end)
             return
         end
         TextLabel.Text = "Source not found"
