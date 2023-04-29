@@ -114,6 +114,9 @@ local ContentProvider = SafeGetService("ContentProvider")
 local TextService = SafeGetService("TextService")
 local http = SafeGetService("HttpService")
 
+local function jsone(str) return http:JSONEncode(str) end
+local function jsond(str) return http:JSONDecode(str) end
+
 local function ErrorPrompt(Message,state)
     if getrenv then
         local ErrorPrompt = getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
@@ -220,9 +223,6 @@ local excluding = {}
 
 -- if mouse inside gui
 local mouseInGui = false
-
-local function jsone(str) return http:JSONEncode(str) end
-local function jsond(str) return http:JSONDecode(str) end
 
 local connections = {}
 local DecompiledScripts = {}
@@ -1949,7 +1949,7 @@ function()
                     info["advancedinfo"]["OnClientEvents"] = {}
 
                     for i,v in next, getconnections(Remote.OnClientEvent) do
-                        info["OnClientEvents"][i] = {
+                        info["advancedinfo"]["OnClientEvents"][i] = {
                             Function = v.Function or "N/A",
                             State = v.State or "N/A"
                         }
