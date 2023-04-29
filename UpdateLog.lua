@@ -9,6 +9,9 @@ and a lot more which I forgor
 
 Beta link:
 https://github.com/78n/SimpleSpy/blob/main/SimpleSpyBeta.lua
+    
+Found a Bug?
+report it in the discord: https://discord.com/invite/AWS6ez9
 
 todo:
 add return value logging
