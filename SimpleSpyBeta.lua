@@ -2,6 +2,12 @@ if getgenv().SimpleSpyExecuted and type(getgenv().SimpleSpyShutdown) == "functio
     getgenv().SimpleSpyShutdown()
 end
 
+if rnet then
+    local hint = Instance.new("Hint",game:GetService("CoreGui"))
+    hint.Text = "Celery is not supported"
+    return
+end
+
 local configs = {
     logcheckcaller = false,
     autoblock = false,
@@ -47,6 +53,8 @@ local clone = table.clone
 
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local threadfuncs = (get_thread_identity and set_thread_identity and true) or false
+
 local getcustomasset = getsynasset or getcustomasset
 local clonefunction = clonefunction or function(func)
     return func
@@ -54,14 +62,20 @@ end
 local cloneref = cloneref or function(instance)
     return instance
 end
+local customthreadcloneref = threadfuncs and cloneref or function(instance): Instance
+    return instance
+end 
 
 local OldDebugId = game.GetDebugId
-local GetDebugId = function(obj: Instance)
-    local old = get_thread_identity()
-    set_thread_identity(8)
-    local id = OldDebugId(obj)
-    set_thread_identity(old)
-    return id
+local GetDebugId = function(obj: Instance): string
+    if threadfuncs then
+        local old = get_thread_identity()
+        set_thread_identity(8)
+        local id = OldDebugId(obj)
+        set_thread_identity(old)
+        return id
+    end
+    return obj
 end
 
 local function Create(instance, properties, children)
@@ -245,20 +259,11 @@ local remoteFunction = Instance.new("RemoteFunction",Storage)
 local originalEvent = remoteEvent.FireServer
 local originalFunction = remoteFunction.InvokeServer
 
-local methodtypes = {
-    ["fireServer"] = true,
-    ["invokeServer"] = true,
-    ["FireServer"] = true,
-    ["InvokeServer"] = true
-}
-
-local getinfolevel = 3
 local synv3 = false
 
 if syn and identifyexecutor then
     local _, version = identifyexecutor()
     if (version and version:sub(1, 2) == 'v3') then
-        getinfolevel = 1
         synv3 = true
     end
 end
@@ -1616,7 +1621,7 @@ local newindex = function(method,originalfunction,...)
         if method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer" then
             if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
                 if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-                remote = cloneref(remote)
+                remote = customthreadcloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
                 if not tablecheck(blacklist,remote,id) then
@@ -1634,7 +1639,7 @@ local newindex = function(method,originalfunction,...)
                     }
                     
                     if configs.funcEnabled then
-                        data.infofunc = info(getinfolevel,"f")
+                        data.infofunc = info(2,"f")
                         local calling = getcallingscript()
                         data.callingscript = calling and cloneref(calling) or nil
                     end
@@ -1673,7 +1678,7 @@ local newnamecall = newcclosure(function(...)
         if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                remote = cloneref(remote)
+                remote = customthreadcloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
                 
@@ -1691,7 +1696,7 @@ local newnamecall = newcclosure(function(...)
                     }
                     
                     if configs.funcEnabled then
-                        data.infofunc = info(getinfolevel,"f")
+                        data.infofunc = info(2,"f")
                         local calling = getcallingscript()
                         data.callingscript = calling and cloneref(calling) or nil
                     end
