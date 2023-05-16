@@ -1,11 +1,9 @@
 Update:
-The major update is here
-Rewrote a lot (If you wanted to test it out early you could have used the beta link)
-Made a thread cache so after you close simple spy all most running threads are closed
-rewrote function info
-removed weaktables and made it so no args are lost
-patched detections
-and a lot more which I forgor
+Development has paused while exploits are down
+
+To Celery users:
+fuck celery the functions are ass
+Added support to hookmetamethod but im not going to bother fixing hookfunction
 
 Beta link:
 https://github.com/78n/SimpleSpy/blob/main/SimpleSpyBeta.lua
