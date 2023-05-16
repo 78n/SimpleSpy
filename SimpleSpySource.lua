@@ -53,10 +53,7 @@ local getcustomasset = getsynasset or getcustomasset
 local getcallingscript = getcallingscript or function()
     return
 end
-if rnet then
-    getgenv().clonefunction = nil
-end
-local clonefunction = not rnet and clonefunction or function(func)
+local clonefunction = not getclipboard and clonefunction or function(func)
     return func
 end
 local cloneref = cloneref or function(instance)
@@ -1734,11 +1731,11 @@ local newnamecall = newcclosure(function(...)
 end)
 
 local newFireServer = newcclosure(function(...)
-    return originalEvent(...)--newindex("FireServer",originalEvent,...)
+    return newindex("FireServer",originalEvent,...)
 end)
 
 local newInvokeServer = newcclosure(function(...)
-    return originalFunction(...)--newindex("InvokeServer",originalFunction,...)
+    return newindex("InvokeServer",originalFunction,...)
 end)
 
 local function disablehooks()
@@ -1755,8 +1752,10 @@ local function disablehooks()
         else
             hookfunction(getrawmetatable(game).__namecall,originalnamecall)
         end
-        hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
-        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+        if not getclipboard then
+            hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
+            hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+        end
     end
 end
 
@@ -1774,7 +1773,7 @@ function toggleSpy()
             else
                 oldnamecall = hookfunction(getrawmetatable(game).__namecall,clonefunction(newnamecall))
             end
-            if not rnet then
+            if not getclipboard then
                 originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
                 originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
             end
