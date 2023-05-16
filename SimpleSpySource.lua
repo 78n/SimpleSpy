@@ -37,7 +37,7 @@ local create = coroutine.create
 local close = coroutine.close
 local info = debug.info
 
-local GetDebugId = game.GetDebugId
+local IsA = game.IsA
 local tostring = tostring
 local tonumber = tonumber
 local delay = task.delay
@@ -47,12 +47,32 @@ local clone = table.clone
 
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local threadfuncs = (get_thread_identity and set_thread_identity and true) or false
+
 local getcustomasset = getsynasset or getcustomasset
-local clonefunction = clonefunction or function(func)
+local getcallingscript = getcallingscript or function()
+    return
+end
+if rnet then
+    getgenv().clonefunction = nil
+end
+local clonefunction = not rnet and clonefunction or function(func)
     return func
 end
 local cloneref = cloneref or function(instance)
     return instance
+end
+
+local OldDebugId = game.GetDebugId
+local GetDebugId = function(obj: Instance): string
+    if threadfuncs then
+        local old = get_thread_identity()
+        set_thread_identity(8)
+        local id = OldDebugId(obj)
+        set_thread_identity(old)
+        return id
+    end
+    return obj
 end
 
 local function Create(instance, properties, children)
@@ -236,20 +256,11 @@ local remoteFunction = Instance.new("RemoteFunction",Storage)
 local originalEvent = remoteEvent.FireServer
 local originalFunction = remoteFunction.InvokeServer
 
-local methodtypes = {
-    ["fireServer"] = true,
-    ["invokeServer"] = true,
-    ["FireServer"] = true,
-    ["InvokeServer"] = true
-}
-
-local getinfolevel = 3
 local synv3 = false
 
 if syn and identifyexecutor then
     local _, version = identifyexecutor()
     if (version and version:sub(1, 2) == 'v3') then
-        getinfolevel = 1
         synv3 = true
     end
 end
@@ -312,6 +323,10 @@ function clean()
         end
         remoteLogs = newLogs
     end
+end
+
+local function ThreadIsNotDead(thread: thread): boolean
+    return not status(thread) == "dead"
 end
 
 --- Scales the ToolTip to fit containing text
@@ -884,35 +899,35 @@ end
 --- @param remote any
 --- @param function_info string
 --- @param blocked any
-function newRemote(type, name, args, remote, func, blocked, src, metamethod,info,id)
+function newRemote(type, data)
     if layoutOrderNum < 1 then layoutOrderNum = 999999999 end
+    local remote = data.remote
+    local callingscript = data.callingscript
+
     local RemoteTemplate = Create("Frame",{LayoutOrder = layoutOrderNum,Name = "RemoteTemplate",Parent = LogList,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Size = UDim2.new(0, 117, 0, 27)})
     local ColorBar = Create("Frame",{Name = "ColorBar",Parent = RemoteTemplate,BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 7, 0, 18),ZIndex = 2})
-    local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
+    local Text = Create("TextLabel",{TextTruncate = Enum.TextTruncate.AtEnd,Name = "Text",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 12, 0, 1),Size = UDim2.new(0, 105, 0, 18),ZIndex = 2,Font = Enum.Font.SourceSans,Text = remote.Name,TextColor3 = Color3.new(1, 1, 1),TextSize = 14,TextXAlignment = Enum.TextXAlignment.Left})
     local Button = Create("TextButton",{Name = "Button",Parent = RemoteTemplate,BackgroundColor3 = Color3.new(0, 0, 0),BackgroundTransparency = 0.75,BorderColor3 = Color3.new(1, 1, 1),Position = UDim2.new(0, 0, 0, 1),Size = UDim2.new(0, 117, 0, 18),AutoButtonColor = false,Font = Enum.Font.SourceSans,Text = "",TextColor3 = Color3.new(0, 0, 0),TextSize = 14})
 
     local log = {
-        Name = name,
-        Function = func,
+        Name = remote.name,
+        Function = data.infofunc or "--Function Info is disabled",
         Remote = cloneref(remote),
-        DebugId = id,
-        metamethod = metamethod,
-        args = deepclone(args),
-        info = info,
+        DebugId = data.id,
+        metamethod = data.metamethod,
+        args = deepclone(data.args),
         Log = RemoteTemplate,
         Button = Button,
-        Blocked = blocked,
-        Source = src and cloneref(src),
-        GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)",
-        LastGen = ""
+        Blocked = data.blocked,
+        Source = callingscript and cloneref(callingscript),
+        returnvalue = data.returnvalue,
+        GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
     }
-    if src and not DecompiledScripts[src] then
-        DecompiledScripts[src] = nil
-    end
+
     logs[#logs + 1] = log
     local connect = Button.MouseButton1Click:Connect(function()
         eventSelect(RemoteTemplate)
-        log.GenScript = genScript(remote, log.args)
+        log.GenScript = genScript(log.Remote, log.args)
         if blocked then
             log.GenScript = "-- THIS REMOTE WAS PREVENTED FROM FIRING TO THE SERVER BY SIMPLESPY\n\n" .. log.GenScript
         end
@@ -1102,7 +1117,7 @@ local typeofv2sfunctions = {
     end,
     Instance = function(v)
         local instance = cloneref(v)
-        return i2p(instance,generation[GetDebugId(instance)])
+        return i2p(instance,generation[OldDebugId(instance)])
     end,
     userdata = function(v)
         if configs.advancedinfo then
@@ -1131,6 +1146,8 @@ local typev2sfunctions = {
 function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     log(running())
     local vtypeof = typeof(v)
+    local vtypeoffunc = typeofv2sfunctions[vtypeof]
+    local vtypefunc = typev2sfunctions[type(v)]
     local vtype = type(v)
     if not tI then
         tI = {0}
@@ -1138,10 +1155,10 @@ function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
         tI[1] += 1
     end
 
-    if typeofv2sfunctions[vtypeof] then
-        return typeofv2sfunctions[vtypeof](v, l, p, n, vtv, i, pt, path, tables, tI)
-    elseif typev2sfunctions[vtype] then
-        return typev2sfunctions[vtype](v,vtypeof)
+    if vtypeoffunc then
+        return vtypeoffunc(v, l, p, n, vtv, i, pt, path, tables, tI)
+    elseif vtypefunc then
+        return vtypefunc(v,vtypeof)
     end
     return ("%s(%s) --[[Generation Failure]]"):format(vtypeof,Safetostring(v))
 end
@@ -1568,65 +1585,89 @@ local function tablecheck(tabletocheck,instance,id)
     return tabletocheck[id] or tabletocheck[instance.Name]
 end
 
-function remoteHandler(methodName, remote, args, func, callingscript, metamethod, blocked, id)
-    if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-        if configs.autoblock then
-            if excluding[id] then
-                return
-            end
-            if not history[id] then
-                history[id] = {badOccurances = 0, lastCall = tick()}
-            end
-            if tick() - history[id].lastCall < 1 then
-                history[id].badOccurances += 1
-                return
-            else
-                history[id].badOccurances = 0
-            end
-            if history[id].badOccurances > 3 then
-                excluding[id] = true
-                return
-            end
-            history[id].lastCall = tick()
+function remoteHandler(data)
+    if configs.autoblock then
+        local id = data.id
+
+        if excluding[id] then
+            return
         end
-
-        local functionInfoStr = func or "--Function Info is disabled"
-
-        newRemote(remote:IsA("RemoteEvent") and lower(methodName) == "fireserver" and "event" or "function", remote.Name, args, remote, functionInfoStr, blockcheck, callingscript, metamethod, func, id)
+        if not history[id] then
+            history[id] = {badOccurances = 0, lastCall = tick()}
+        end
+        if tick() - history[id].lastCall < 1 then
+            history[id].badOccurances += 1
+            return
+        else
+            history[id].badOccurances = 0
+        end
+        if history[id].badOccurances > 3 then
+            excluding[id] = true
+            return
+        end
+        history[id].lastCall = tick()
     end
-end
-
-local function logreturnvalue(func,...)
-    local returndata = func(...)
-    return returndata
+    print(data)
+    if data.remote:IsA("RemoteEvent") and lower(data.method) == "fireserver" then
+        newRemote("event", data)
+    elseif data.remote:IsA("RemoteFunction") and lower(data.method) == "invokeserver" then
+        newRemote("function", data)
+    end
 end
 
 local newindex = function(method,originalfunction,...)
     local remote = ...
+
     if typeof(remote) == 'Instance' then
-        if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-
         if method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer" then
-            local old = get_thread_identity()
-            set_thread_identity(8)
-            remote = cloneref(remote)
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
+                remote = cloneref(remote)
+                local id = GetDebugId(remote)
+                local blockcheck = tablecheck(blocklist,remote,id)
 
-            local id = GetDebugId(remote)
-            local blockcheck = tablecheck(blocklist,remote,id)
-            if not tablecheck(blacklist,remote,id) then
-                local args = {select(2,...)}
-                local infofunc
-                local callingscript
+                if not tablecheck(blacklist,remote,id) then
+                    local data = {
+                        method = method,
+                        remote = remote,
+                        args = {select(2,...)},
+                        infofunc = infofunc,
+                        callingscript = callingscript,
+                        metamethod = "__index",
+                        blockcheck = blockcheck,
+                        id = id,
+                        returnvalue = {}
+                    }
 
-                if configs.funcEnabled then
-                    infofunc = info(getinfolevel,"f")
-                    local calling = getcallingscript()
-                    callingscript = calling and cloneref(calling) or nil
+                    if configs.funcEnabled then
+                        data.infofunc = info(2,"f")
+                        local calling = getcallingscript()
+                        data.callingscript = calling and cloneref(calling) or nil
+                    end
+
+                    log(spawn(schedule,remoteHandler,data))
+
+                    if configs.logreturnvalues then
+                        local thread = running()
+                        local returnargs = {...}
+                        local returndata
+
+                        spawn(function()
+                            setnamecallmethod(method)
+                            returndata = originalnamecall(unpack(returnargs))
+                            data.returnvalue.data = returndata
+                            if ThreadIsNotDead(thread) then
+                                resume(thread)
+                            end
+                        end)
+                        yield()
+                        if not blockcheck then
+                            return returndata
+                        end
+                    end
                 end
-                log(spawn(schedule,remoteHandler, method, remote, args, infofunc, callingscript, "__index",blockcheck,id))
+                if blockcheck then return end
             end
-            set_thread_identity(old)
-            if blockcheck then return end
         end
     end
     return originalfunction(...)
@@ -1634,41 +1675,70 @@ end
 
 local newnamecall = newcclosure(function(...)
     local remote = ...
-    if typeof(remote) == 'Instance' then
-        if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-        local method = getnamecallmethod()
-        if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
-            local old = get_thread_identity()
-            set_thread_identity(8)
-            remote = cloneref(remote)
-            
-            local id = GetDebugId(remote)
-            local blockcheck = tablecheck(blocklist,remote,id)
-            if not tablecheck(blacklist,remote,id) then
-                local args = {select(2,...)}
-                local infofunc
-                local callingscript
 
-                if configs.funcEnabled then
-                    infofunc = info(getinfolevel,"f")
-                    local calling = getcallingscript()
-                    callingscript = calling and cloneref(calling) or nil
+    if typeof(remote) == 'Instance' then
+        local method = getnamecallmethod()
+
+        if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
+            if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
+                if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
+                remote = cloneref(remote)
+                local id = GetDebugId(remote)
+                local blockcheck = tablecheck(blocklist,remote,id)
+
+                if not tablecheck(blacklist,remote,id) then
+                    local data = {
+                        method = method,
+                        remote = remote,
+                        args = {select(2,...)},
+                        infofunc = infofunc,
+                        callingscript = callingscript,
+                        metamethod = "__namecall",
+                        blockcheck = blockcheck,
+                        id = id,
+                        returnvalue = {}
+                    }
+
+                    if configs.funcEnabled then
+                        data.infofunc = info(2,"f")
+                        local calling = getcallingscript()
+                        data.callingscript = calling and cloneref(calling) or nil
+                    end
+
+                    log(spawn(schedule,remoteHandler,data))
+                    
+                    if configs.logreturnvalues then
+                        local thread = running()
+                        local returnargs = {...}
+                        local returndata
+
+                        spawn(function()
+                            setnamecallmethod(method)
+                            returndata = originalnamecall(unpack(returnargs))
+                            data.returnvalue.data = returndata
+                            if ThreadIsNotDead(thread) then
+                                resume(thread)
+                            end
+                        end)
+                        yield()
+                        if not blockcheck then
+                            return returndata
+                        end
+                    end
                 end
-                log(spawn(schedule,remoteHandler, method, remote, args, infofunc, callingscript, "__namecall",blockcheck,id))
+                if blockcheck then return end
             end
-            set_thread_identity(old)
-            if blockcheck then return end
         end
     end
     return originalnamecall(...)
 end)
 
 local newFireServer = newcclosure(function(...)
-    return newindex("FireServer",originalEvent,...)
+    return originalEvent(...)--newindex("FireServer",originalEvent,...)
 end)
 
 local newInvokeServer = newcclosure(function(...)
-    return newindex("InvokeServer",originalFunction,...)
+    return originalFunction(...)--newindex("InvokeServer",originalFunction,...)
 end)
 
 local function disablehooks()
@@ -1704,8 +1774,10 @@ function toggleSpy()
             else
                 oldnamecall = hookfunction(getrawmetatable(game).__namecall,clonefunction(newnamecall))
             end
-            originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
-            originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
+            if not rnet then
+                originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
+                originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
+            end
         end
         originalnamecall = originalnamecall or function(...)
             return oldnamecall(...)
@@ -1730,7 +1802,9 @@ local function shutdown()
         connection:Disconnect()
     end
     for i,v in next, running_threads do
-        close(v)
+        if ThreadIsNotDead(v) then
+            close(v)
+        end
     end
     clear(running_threads)
     clear(connections)
@@ -1797,10 +1871,10 @@ if not getgenv().SimpleSpyExecuted then
         log(spawn(function()
             local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
             generation = {
-                [GetDebugId(lp)] = 'game:GetService("Players").LocalPlayer',
-                [GetDebugId(lp:GetMouse())] = 'game:GetService("Players").LocalPlayer:GetMouse',
-                [GetDebugId(game)] = "game",
-                [GetDebugId(workspace)] = "workspace"
+                [OldDebugId(lp)] = 'game:GetService("Players").LocalPlayer',
+                [OldDebugId(lp:GetMouse())] = 'game:GetService("Players").LocalPlayer:GetMouse',
+                [OldDebugId(game)] = "game",
+                [OldDebugId(workspace)] = "workspace"
             }
         end))
     end)
@@ -1936,9 +2010,9 @@ function()
                 info["advancedinfo"] = {
                     Metamethod = selected.metamethod,
                     DebugId = {
-                        SourceScriptDebugId = SourceScript and typeof(SourceScript) == "Instance" and GetDebugId(SourceScript) or "N/A",
-                        CallingScriptDebugId = CallingScript and typeof(SourceScript) == "Instance" and GetDebugId(CallingScript) or "N/A",
-                        RemoteDebugId = GetDebugId(Remote)
+                        SourceScriptDebugId = SourceScript and typeof(SourceScript) == "Instance" and OldDebugId(SourceScript) or "N/A",
+                        CallingScriptDebugId = CallingScript and typeof(SourceScript) == "Instance" and OldDebugId(CallingScript) or "N/A",
+                        RemoteDebugId = OldDebugId(Remote)
                     },
                     Protos = lclosure and getprotos(func) or "N/A --Lua Closure expected got C Closure"
                 }
@@ -1990,7 +2064,7 @@ newButton(
     function() return "Click to exclude this Remote.\nExcluding a remote makes SimpleSpy ignore it, but it will continue to be usable." end,
     function()
         if selected then
-            blacklist[GetDebugId(selected.Remote)] = true
+            blacklist[OldDebugId(selected.Remote)] = true
             TextLabel.Text = "Excluded!"
         end
     end
@@ -2022,7 +2096,7 @@ newButton(
     function() return "Click to stop this remote from firing.\nBlocking a remote won't remove it from SimpleSpy logs, but it will not continue to fire the server." end,
     function()
         if selected then
-            blocklist[GetDebugId(selected.Remote)] = true
+            blocklist[OldDebugId(selected.Remote)] = true
             TextLabel.Text = "Excluded!"
         end
     end
@@ -2074,6 +2148,20 @@ newButton("Decompile",
             TextLabel.Text = "Source not found!"
         end
     end)
+
+    newButton(
+        "returnvalue",
+        function() return "a" end,
+        function()
+            if selected then
+                configs.logreturnvalues = true
+                if selected.returnvalue then
+                    return codebox:setRaw(v2s(selected.returnvalue.data))
+                end
+                codebox:setRaw(v2s(selected.returnvalue.data))
+            end
+        end
+    )
 
 newButton(
     "Disable Info",
