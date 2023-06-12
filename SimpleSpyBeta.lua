@@ -2,12 +2,6 @@ if getgenv().SimpleSpyExecuted and type(getgenv().SimpleSpyShutdown) == "functio
     getgenv().SimpleSpyShutdown()
 end
 
-if rnet then
-    local hint = Instance.new("Hint",game:GetService("CoreGui"))
-    hint.Text = "Celery is not supported"
-    return
-end
-
 local configs = {
     logcheckcaller = false,
     autoblock = false,
@@ -41,6 +35,7 @@ local status = coroutine.status
 local yield = coroutine.yield
 local create = coroutine.create
 local close = coroutine.close
+local OldDebugId = game.GetDebugId
 local info = debug.info
 
 local IsA = game.IsA
@@ -51,22 +46,29 @@ local spawn = task.spawn
 local clear = table.clear
 local clone = table.clone
 
+local function blankfunction(...)
+    return ...
+end
+
+local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
+    return ErrorPrompt("Attempted to set clipboard: "..(...),true)
+end
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
 local threadfuncs = (get_thread_identity and set_thread_identity and true) or false
 
-local getcustomasset = getsynasset or getcustomasset
-local clonefunction = clonefunction or function(func)
-    return func
-end
-local cloneref = cloneref or function(instance)
-    return instance
-end
-local customthreadcloneref = threadfuncs and cloneref or function(instance): Instance
-    return instance
-end 
+local getinfo = getinfo or blankfunction
+local getupvalues = getupvalues or debug.getupvalues or blankfunction
+local getconstants = getconstants or debug.getconstants or blankfunction
 
-local OldDebugId = game.GetDebugId
+local getcustomasset = getsynasset or getcustomasset
+local getcallingscript = getcallingscript or blankfunction
+local newcclosure = newcclosure or blankfunction
+local clonefunction = clonefunction or blankfunction
+local cloneref = cloneref or blankfunction
+local request = request or syn and syn.request
+local isreadonly = isreadonly or table.isfrozen
+
 local GetDebugId = function(obj: Instance): string
     if threadfuncs then
         local old = get_thread_identity()
@@ -119,9 +121,16 @@ local function Safetostring(userdata)
 		local cachedstring = rawmetatable and rawget(rawmetatable, "__tostring")
 
 		if cachedstring then
+            local wasreadonly = isreadonly(rawmetatable)
+            if wasreadonly then
+                setreadonly(rawmetatable,false)
+            end
 			rawset(rawmetatable, "__tostring", nil)
 			local safestring = tostring(userdata)
 			rawset(rawmetatable, "__tostring", cachedstring)
+            if wasreadonly then
+                setreadonly(rawmetatable,true)
+            end
 			return safestring
 		end
 	end
@@ -140,7 +149,7 @@ local http = SafeGetService("HttpService")
 local function jsone(str) return http:JSONEncode(str) end
 local function jsond(str) return http:JSONDecode(str) end
 
-local function ErrorPrompt(Message,state)
+function ErrorPrompt(Message,state)
     if getrenv then
         local ErrorPrompt = getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
         local prompt = ErrorPrompt.new("Default",{HideErrorCode = true})
@@ -326,6 +335,10 @@ function clean()
         end
         remoteLogs = newLogs
     end
+end
+
+local function ThreadIsNotDead(thread: thread): boolean
+    return not status(thread) == "dead"
 end
 
 --- Scales the ToolTip to fit containing text
@@ -1266,8 +1279,6 @@ end
 
 --- function-to-string
 function f2s(f)
-    --[[
-        No real point in having this
     for k, x in next, getgenv() do
         local isgucci, gpath
         if rawequal(x, f) then
@@ -1282,7 +1293,7 @@ function f2s(f)
                 return "getgenv()[" .. v2s(k) .. "]" .. gpath
             end
         end
-    end]]
+    end
     if configs.funcEnabled then
         local funcname = info(f,"n")
         
@@ -1621,11 +1632,11 @@ local newindex = function(method,originalfunction,...)
         if method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer" then
             if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
                 if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-                remote = customthreadcloneref(remote)
+                remote = cloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
-                if not tablecheck(blacklist,remote,id) then
 
+                if not tablecheck(blacklist,remote,id) then
                     local data = {
                         method = method,
                         remote = remote,
@@ -1637,12 +1648,13 @@ local newindex = function(method,originalfunction,...)
                         id = id,
                         returnvalue = {}
                     }
-                    
+
                     if configs.funcEnabled then
                         data.infofunc = info(2,"f")
                         local calling = getcallingscript()
                         data.callingscript = calling and cloneref(calling) or nil
                     end
+
                     log(spawn(schedule,remoteHandler,data))
 
                     if configs.logreturnvalues then
@@ -1654,9 +1666,11 @@ local newindex = function(method,originalfunction,...)
                             setnamecallmethod(method)
                             returndata = originalnamecall(unpack(returnargs))
                             data.returnvalue.data = returndata
-                            resume(thread)
+                            if ThreadIsNotDead(thread) then
+                                resume(thread)
+                            end
                         end)
-                        yield(thread)
+                        yield()
                         if not blockcheck then
                             return returndata
                         end
@@ -1678,10 +1692,10 @@ local newnamecall = newcclosure(function(...)
         if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                remote = customthreadcloneref(remote)
+                remote = cloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
-                
+
                 if not tablecheck(blacklist,remote,id) then
                     local data = {
                         method = method,
@@ -1694,13 +1708,15 @@ local newnamecall = newcclosure(function(...)
                         id = id,
                         returnvalue = {}
                     }
-                    
+
                     if configs.funcEnabled then
                         data.infofunc = info(2,"f")
                         local calling = getcallingscript()
                         data.callingscript = calling and cloneref(calling) or nil
                     end
+
                     log(spawn(schedule,remoteHandler,data))
+                    
                     if configs.logreturnvalues then
                         local thread = running()
                         local returnargs = {...}
@@ -1710,9 +1726,11 @@ local newnamecall = newcclosure(function(...)
                             setnamecallmethod(method)
                             returndata = originalnamecall(unpack(returnargs))
                             data.returnvalue.data = returndata
-                            resume(thread)
+                            if ThreadIsNotDead(thread) then
+                                resume(thread)
+                            end
                         end)
-                        yield(thread)
+                        yield()
                         if not blockcheck then
                             return returndata
                         end
@@ -1792,7 +1810,9 @@ local function shutdown()
         connection:Disconnect()
     end
     for i,v in next, running_threads do
-        close(v)
+        if ThreadIsNotDead(v) then
+            close(v)
+        end
     end
     clear(running_threads)
     clear(connections)
@@ -1973,7 +1993,7 @@ function()
     local func = selected and selected.Function
     if func then
         local typeoffunc = typeof(func)
-        getgenv().func = func
+
         if typeoffunc ~= 'string' then
             codebox:setRaw("--[[Generating Function Info please wait]]")
             RunService.Heartbeat:Wait()
@@ -1981,7 +2001,7 @@ function()
             local SourceScript = rawget(getfenv(func),"script")
             local CallingScript = selected.Source or nil
             local info = {}
-
+            
             info = {
                 info = getinfo(func),
                 constants = lclosure and deepclone(getconstants(func)) or "N/A --Lua Closure expected got C Closure",
@@ -2187,7 +2207,6 @@ function()
     TextLabel.Text = ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
 end)
 
-if syn and syn.request then request = syn.request end
 newButton("Join Discord",function()
     return "Joins The Simple Spy Discord"
 end,
