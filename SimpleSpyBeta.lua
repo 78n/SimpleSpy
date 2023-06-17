@@ -1657,7 +1657,7 @@ local newindex = function(method,originalfunction,...)
 
                     log(spawn(schedule,remoteHandler,data))
 
-                    if configs.logreturnvalues then
+                    if configs.logreturnvalues and remote:IsA("RemoteFunction") then
                         local thread = running()
                         local returnargs = {...}
                         local returndata
@@ -1717,7 +1717,7 @@ local newnamecall = newcclosure(function(...)
 
                     log(spawn(schedule,remoteHandler,data))
                     
-                    if configs.logreturnvalues then
+                    if configs.logreturnvalues and remote.IsA(remote,"RemoteFunction") then
                         local thread = running()
                         local returnargs = {...}
                         local returndata
@@ -2159,14 +2159,18 @@ newButton("Decompile",
 
     newButton(
         "returnvalue",
-        function() return "a" end,
+        function() return "Get a Remote's return data" end,
         function()
             if selected then
-                configs.logreturnvalues = true
-                if selected.returnvalue then
-                    return codebox:setRaw(v2s(selected.returnvalue.data))
+                local Remote = selected.Remote
+                if Remote and Remote:IsA("RemoteFunction") then
+                    if selected.returnvalue and selected.returnvalue.data then
+                        return codebox:setRaw(v2s(selected.returnvalue.data))
+                    end
+                    return codebox:setRaw("No data was returned")
+                else
+                    codebox:setRaw("RemoteFunction expected got "..(Remote and Remote.ClassName))
                 end
-                codebox:setRaw(v2s(selected.returnvalue.data))
             end
         end
     )
@@ -2197,6 +2201,14 @@ end,
 function()
     configs.logcheckcaller = not configs.logcheckcaller
     TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
+end)
+
+newButton("Log returnvalues",function()
+    return ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
+end,
+function()
+    configs.logreturnvalues = not configs.logreturnvalues
+    TextLabel.Text = ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logreturnvalues and "ENABLED" or "DISABLED")
 end)
 
 newButton("Advanced Info",function()
