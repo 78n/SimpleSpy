@@ -1643,25 +1643,6 @@ local newindex = function(method,originalfunction,...)
                     end
 
                     log(spawn(schedule,remoteHandler,data))
-
-                    if configs.logreturnvalues then
-                        local thread = running()
-                        local returnargs = {...}
-                        local returndata
-
-                        spawn(function()
-                            setnamecallmethod(method)
-                            returndata = originalnamecall(unpack(returnargs))
-                            data.returnvalue.data = returndata
-                            if ThreadIsNotDead(thread) then
-                                resume(thread)
-                            end
-                        end)
-                        yield()
-                        if not blockcheck then
-                            return returndata
-                        end
-                    end
                 end
                 if blockcheck then return end
             end
@@ -1703,25 +1684,6 @@ local newnamecall = newcclosure(function(...)
                     end
 
                     log(spawn(schedule,remoteHandler,data))
-                    
-                    if configs.logreturnvalues then
-                        local thread = running()
-                        local returnargs = {...}
-                        local returndata
-
-                        spawn(function()
-                            setnamecallmethod(method)
-                            returndata = originalnamecall(unpack(returnargs))
-                            data.returnvalue.data = returndata
-                            if ThreadIsNotDead(thread) then
-                                resume(thread)
-                            end
-                        end)
-                        yield()
-                        if not blockcheck then
-                            return returndata
-                        end
-                    end
                 end
                 if blockcheck then return end
             end
