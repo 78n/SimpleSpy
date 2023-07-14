@@ -2110,20 +2110,6 @@ newButton("Decompile",
         end
     end)
 
-    newButton(
-        "returnvalue",
-        function() return "a" end,
-        function()
-            if selected then
-                configs.logreturnvalues = true
-                if selected.returnvalue then
-                    return codebox:setRaw(v2s(selected.returnvalue.data))
-                end
-                codebox:setRaw(v2s(selected.returnvalue.data))
-            end
-        end
-    )
-
 newButton(
     "Disable Info",
     function() return string.format("[%s] Toggle function info (because it can cause lag in some games)", configs.funcEnabled and "ENABLED" or "DISABLED") end,
