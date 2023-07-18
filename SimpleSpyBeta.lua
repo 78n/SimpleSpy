@@ -7,25 +7,14 @@ local configs = {
     autoblock = false,
     funcEnabled = true,
     advancedinfo = false,
-    logreturnvalues = false,
+    --logreturnvalues = false,
     supersecretdevtoggle = false
 }
 
-local game = game
-local workspace = workspace
-local table = table
-local math = math
-local task = task
-local debug = debug
-local coroutine = coroutine
-local string = string
-local Color3 = Color3
-local Instance = Instance
-local syn = syn 
 local oth = syn and syn.oth
-
 local unhook = oth and oth.unhook
 local hook = oth and oth.hook
+
 local lower = string.lower
 local byte = string.byte
 local round = math.round
@@ -53,8 +42,24 @@ end
 local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
     return ErrorPrompt("Attempted to set clipboard: "..(...),true)
 end
+
+local hookmetamethod = hookmetamethod or (setreadonly and getrawmetatable) and function(obj: object, metamethod: string, func: Function)
+    local old = getrawmetatable(obj)
+
+    if hookfunction then
+        return hookfunction(old[metamethod],func)
+    else
+        local oldmetamethod = old[metamethod]
+        setreadonly(old,false)
+        old[metamethod] = func
+        setreadonly(old,true)
+        return oldmetamethod
+    end
+end
+
 local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local islclosure = islclosure or is_l_closure
 local threadfuncs = (get_thread_identity and set_thread_identity and true) or false
 
 local getinfo = getinfo or blankfunction
@@ -96,10 +101,37 @@ local function SafeGetService(service)
     return cloneref(game:GetService(service))
 end
 
-local function deepclone(args: table, copies: table)
+local function Search(logtable,tbl)
+    table.insert(logtable,tbl)
+    
+    for i,v in tbl do
+        if type(v) == "table" then
+            return table.find(logtable,v) and true or Search(v)
+        end
+    end
+end
+
+local function IsCyclicTable(tbl)
+	local checkedtables = {}
+
+    local function SearchTable(tbl)
+        table.insert(checkedtables,tbl)
+        
+        for i,v in tbl do
+            if type(v) == "table" then
+                return table.find(checkedtables,v) and true or SearchTable(v)
+            end
+        end
+    end
+
+	return SearchTable(tbl)
+end
+
+local function deepclone(args: table, copies: table): table
+    local copy = nil
     copies = copies or {}
-    local copy
-    if typeof(args) == 'table' then
+
+    if type(args) == 'table' then
         if copies[args] then
             copy = copies[args]
         else
@@ -924,14 +956,14 @@ function newRemote(type, data)
     local log = {
         Name = remote.name,
         Function = data.infofunc or "--Function Info is disabled",
-        Remote = cloneref(remote),
+        Remote = remote,
         DebugId = data.id,
         metamethod = data.metamethod,
-        args = deepclone(data.args),
+        args = data.args,
         Log = RemoteTemplate,
         Button = Button,
         Blocked = data.blocked,
-        Source = callingscript and cloneref(callingscript),
+        Source = callingscript,
         returnvalue = data.returnvalue,
         GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
     }
@@ -1016,7 +1048,7 @@ local ufunctions = {
     Ray = function(u)
         return ("Ray.new(%s)"):format(Safetostring(u))
     end,
-    NumberSequence = function(u)
+    --[[NumberSequence = function(u)
         return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
     end,
     ColorSequence = function(u)
@@ -1028,7 +1060,7 @@ local ufunctions = {
             end
         end
         return ret .. ")"
-    end,
+    end,]]
     BrickColor = function(u)
         return ("BrickColor.new(%s)"):format(Safetostring(u.Number))
     end,
@@ -1626,81 +1658,80 @@ function remoteHandler(data)
 end
 
 local newindex = function(method,originalfunction,...)
-    local remote = ...
+    if typeof(...) == 'Instance' then
+        local remote = cloneref(...)
 
-    if typeof(remote) == 'Instance' then
-        if method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer" then
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-                remote = cloneref(remote)
-                local id = GetDebugId(remote)
-                local blockcheck = tablecheck(blocklist,remote,id)
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
+            local id = GetDebugId(remote)
+            local blockcheck = tablecheck(blocklist,remote,id)
+            local args = {select(2,...)}
 
-                if not tablecheck(blacklist,remote,id) then
-                    local data = {
-                        method = method,
-                        remote = remote,
-                        args = {select(2,...)},
-                        infofunc = infofunc,
-                        callingscript = callingscript,
-                        metamethod = "__index",
-                        blockcheck = blockcheck,
-                        id = id,
-                        returnvalue = {}
-                    }
+            if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
+                local data = {
+                    method = method,
+                    remote = remote,
+                    args = deepclone(args),
+                    infofunc = infofunc,
+                    callingscript = callingscript,
+                    metamethod = "__index",
+                    blockcheck = blockcheck,
+                    id = id,
+                    returnvalue = {}
+                }
+                args = nil
 
-                    if configs.funcEnabled then
-                        data.infofunc = info(2,"f")
-                        local calling = getcallingscript()
-                        data.callingscript = calling and cloneref(calling) or nil
-                    end
-
-                    log(spawn(schedule,remoteHandler,data))
-
-                    if configs.logreturnvalues and remote:IsA("RemoteFunction") then
-                        local thread = running()
-                        local returnargs = {...}
-                        local returndata
-
-                        spawn(function()
-                            setnamecallmethod(method)
-                            returndata = originalnamecall(unpack(returnargs))
-                            data.returnvalue.data = returndata
-                            if ThreadIsNotDead(thread) then
-                                resume(thread)
-                            end
-                        end)
-                        yield()
-                        if not blockcheck then
-                            return returndata
-                        end
-                    end
+                if configs.funcEnabled then
+                    data.infofunc = info(2,"f")
+                    local calling = getcallingscript()
+                    data.callingscript = calling and cloneref(calling) or nil
                 end
-                if blockcheck then return end
-            end
+
+                schedule(remoteHandler,data)
+
+                --[[if configs.logreturnvalues and remote:IsA("RemoteFunction") then
+                    local thread = running()
+                    local returnargs = {...}
+                    local returndata
+
+                    spawn(function()
+                        setnamecallmethod(method)
+                        returndata = originalnamecall(unpack(returnargs))
+                        data.returnvalue.data = returndata
+                        if ThreadIsNotDead(thread) then
+                            resume(thread)
+                        end
+                     end)
+                    yield()
+                    if not blockcheck then
+                        return returndata
+                    end
+                end]]
+                end
+            if blockcheck then return end
         end
     end
     return originalfunction(...)
 end
 
 local newnamecall = newcclosure(function(...)
-    local remote = ...
+    local method = getnamecallmethod()
 
-    if typeof(remote) == 'Instance' then
-        local method = getnamecallmethod()
+    if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
+        if typeof(...) == 'Instance' then
+            local remote = cloneref(...)
 
-        if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                remote = cloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
+                local args = {select(2,...)}
 
-                if not tablecheck(blacklist,remote,id) then
+                if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
                     local data = {
                         method = method,
                         remote = remote,
-                        args = {select(2,...)},
+                        args = deepclone(args),
                         infofunc = infofunc,
                         callingscript = callingscript,
                         metamethod = "__namecall",
@@ -1708,6 +1739,7 @@ local newnamecall = newcclosure(function(...)
                         id = id,
                         returnvalue = {}
                     }
+                    args = nil
 
                     if configs.funcEnabled then
                         data.infofunc = info(2,"f")
@@ -1715,9 +1747,9 @@ local newnamecall = newcclosure(function(...)
                         data.callingscript = calling and cloneref(calling) or nil
                     end
 
-                    log(spawn(schedule,remoteHandler,data))
+                    schedule(remoteHandler,data)
                     
-                    if configs.logreturnvalues and remote.IsA(remote,"RemoteFunction") then
+                    --[[if configs.logreturnvalues and remote.IsA(remote,"RemoteFunction") then
                         local thread = running()
                         local returnargs = {...}
                         local returndata
@@ -1734,7 +1766,7 @@ local newnamecall = newcclosure(function(...)
                         if not blockcheck then
                             return returndata
                         end
-                    end
+                    end]]
                 end
                 if blockcheck then return end
             end
@@ -2203,13 +2235,13 @@ function()
     TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
 end)
 
-newButton("Log returnvalues",function()
+--[[newButton("Log returnvalues",function()
     return ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
 end,
 function()
     configs.logreturnvalues = not configs.logreturnvalues
     TextLabel.Text = ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logreturnvalues and "ENABLED" or "DISABLED")
-end)
+end)]]
 
 newButton("Advanced Info",function()
     return ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
