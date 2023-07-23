@@ -7,25 +7,14 @@ local configs = {
     autoblock = false,
     funcEnabled = true,
     advancedinfo = false,
-    logreturnvalues = false,
+    --logreturnvalues = false,
     supersecretdevtoggle = false
 }
 
-local game = game
-local workspace = workspace
-local table = table
-local math = math
-local task = task
-local debug = debug
-local coroutine = coroutine
-local string = string
-local Color3 = Color3
-local Instance = Instance
-local syn = syn 
 local oth = syn and syn.oth
-
 local unhook = oth and oth.unhook
 local hook = oth and oth.hook
+
 local lower = string.lower
 local byte = string.byte
 local round = math.round
@@ -35,6 +24,7 @@ local status = coroutine.status
 local yield = coroutine.yield
 local create = coroutine.create
 local close = coroutine.close
+local OldDebugId = game.GetDebugId
 local info = debug.info
 
 local IsA = game.IsA
@@ -45,22 +35,52 @@ local spawn = task.spawn
 local clear = table.clear
 local clone = table.clone
 
-local get_thread_identity = (syn and syn.get_thread_identity) or getthreadidentity
+local function blankfunction(...)
+    return ...
+end
+
+local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
+    return ErrorPrompt("Attempted to set clipboard: "..(...),true)
+end
+
+local hookmetamethod = hookmetamethod or (setreadonly and getrawmetatable) and function(obj: object, metamethod: string, func: Function)
+    local old = getrawmetatable(obj)
+
+    if hookfunction then
+        return hookfunction(old[metamethod],func)
+    else
+        local oldmetamethod = old[metamethod]
+        setreadonly(old,false)
+        old[metamethod] = func
+        setreadonly(old,true)
+        return oldmetamethod
+    end
+end
+
+local get_thread_identity = (syn and syn.get_thread_identity) or getidentity or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
+local islclosure = islclosure or is_l_closure
 local threadfuncs = (get_thread_identity and set_thread_identity and true) or false
 
+local getinfo = getinfo or blankfunction
+local getupvalues = getupvalues or debug.getupvalues or blankfunction
+local getconstants = getconstants or debug.getconstants or blankfunction
+
 local getcustomasset = getsynasset or getcustomasset
-local getcallingscript = getcallingscript or function()
-    return
+local getcallingscript = getcallingscript or blankfunction
+local newcclosure = newcclosure or blankfunction
+local clonefunction = clonefunction or blankfunction
+local cloneref = cloneref or blankfunction
+local request = request or syn and syn.request
+local makewritable = makewriteable or function(tbl)
+    setreadonly(tbl,false)
 end
-local clonefunction = not getclipboard and clonefunction or function(func)
-    return func
-end
-local cloneref = cloneref or function(instance)
-    return instance
+local makereadonly = makereadonly or function(tbl)
+    setreadonly(tbl,true)
 end
 
-local OldDebugId = game.GetDebugId
+local isreadonly = isreadonly or table.isfrozen
+
 local GetDebugId = function(obj: Instance): string
     if threadfuncs then
         local old = get_thread_identity()
@@ -88,10 +108,37 @@ local function SafeGetService(service)
     return cloneref(game:GetService(service))
 end
 
-local function deepclone(args: table, copies: table)
+local function Search(logtable,tbl)
+    table.insert(logtable,tbl)
+    
+    for i,v in tbl do
+        if type(v) == "table" then
+            return table.find(logtable,v) ~= nil or Search(v)
+        end
+    end
+end
+
+local function IsCyclicTable(tbl)
+	local checkedtables = {}
+
+    local function SearchTable(tbl)
+        table.insert(checkedtables,tbl)
+        
+        for i,v in tbl do
+            if type(v) == "table" then
+                return table.find(checkedtables,v) and true or SearchTable(v)
+            end
+        end
+    end
+
+	return SearchTable(tbl)
+end
+
+local function deepclone(args: table, copies: table): table
+    local copy = nil
     copies = copies or {}
-    local copy
-    if typeof(args) == 'table' then
+
+    if type(args) == 'table' then
         if copies[args] then
             copy = copies[args]
         else
@@ -107,15 +154,22 @@ local function deepclone(args: table, copies: table)
     return copy
 end
 
-local function Safetostring(userdata)
+local function rawtostring(userdata)
 	if type(userdata) == "table" or typeof(userdata) == "userdata" then
 		local rawmetatable = getrawmetatable(userdata)
 		local cachedstring = rawmetatable and rawget(rawmetatable, "__tostring")
 
 		if cachedstring then
+            local wasreadonly = isreadonly(rawmetatable)
+            if wasreadonly then
+                makewritable(rawmetatable)
+            end
 			rawset(rawmetatable, "__tostring", nil)
 			local safestring = tostring(userdata)
 			rawset(rawmetatable, "__tostring", cachedstring)
+            if wasreadonly then
+                makereadonly(rawmetatable)
+            end
 			return safestring
 		end
 	end
@@ -134,7 +188,7 @@ local http = SafeGetService("HttpService")
 local function jsone(str) return http:JSONEncode(str) end
 local function jsond(str) return http:JSONDecode(str) end
 
-local function ErrorPrompt(Message,state)
+function ErrorPrompt(Message,state)
     if getrenv then
         local ErrorPrompt = getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
         local prompt = ErrorPrompt.new("Default",{HideErrorCode = true})
@@ -619,15 +673,12 @@ end
 --- @param p Vector2
 function isInDragRange(p)
     local relativeP = p - Background.AbsolutePosition
-    if relativeP.X <= TopBar.AbsoluteSize.X - CloseButton.AbsoluteSize.X * 3 and relativeP.X >= 0
-        and relativeP.Y <= TopBar.AbsoluteSize.Y and relativeP.Y >= 0 then
-        return true
-    end
-    return false
+    local topbarAS = TopBar.AbsoluteSize
+    return relativeP.X <= topbarAS.X - CloseButton.AbsoluteSize.X * 3 and relativeP.X >= 0 and relativeP.Y <= topbarAS.Y and relativeP.Y >= 0 or false
 end
 
 --- Called when mouse enters SimpleSpy
-local customCursor = Create("ImageLabel",{Parent = SimpleSpy3,Visible = false,Size = UDim2.fromOffset(200, 200),ZIndex = 1e5,BackgroundTransparency = 1,Image = "",Parent = SimpleSpy3})
+local customCursor = Create("ImageLabel",{Parent = SimpleSpy3,Visible = false,Size = UDim2.fromOffset(200, 200),ZIndex = 1e9,BackgroundTransparency = 1,Image = "",Parent = SimpleSpy3})
 function mouseEntered()
     local con = connections["SIMPLESPY_CURSOR"]
     if con then
@@ -909,14 +960,14 @@ function newRemote(type, data)
     local log = {
         Name = remote.name,
         Function = data.infofunc or "--Function Info is disabled",
-        Remote = cloneref(remote),
+        Remote = remote,
         DebugId = data.id,
         metamethod = data.metamethod,
-        args = deepclone(data.args),
+        args = data.args,
         Log = RemoteTemplate,
         Button = Button,
         Blocked = data.blocked,
-        Source = callingscript and cloneref(callingscript),
+        Source = callingscript,
         returnvalue = data.returnvalue,
         GenScript = "-- Generating, please wait...\n-- (If this message persists, the remote args are likely extremely long)"
     }
@@ -946,7 +997,7 @@ function genScript(remote, args)
         xpcall(function()
             gen = v2v({args = args}) .. "\n"
         end,function(err)
-            gen = gen.."-- An error has occured:\n--"..err.."\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
+            gen ..= "-- An error has occured:\n--"..err.."\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
             xpcall(function()
                 for i, v in next, args do
                     if type(i) ~= "Instance" and type(i) ~= "userdata" then
@@ -968,24 +1019,24 @@ function genScript(remote, args)
                         gen = gen .. "game." .. v:GetFullName()
                     end
                 end
-                gen = gen .. "\n}\n\n"
+                gen ..= "\n}\n\n"
             end,function()
-                gen = gen .. "}\n-- Legacy tableToString failure! Unable to decompile."
+                gen ..= "}\n-- Legacy tableToString failure! Unable to decompile."
             end)
         end)
         if not remote:IsDescendantOf(game) and not getnilrequired then
             gen = "function getNil(name,class) for _,v in next, getnilinstances()do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
         end
         if remote:IsA("RemoteEvent") then
-            gen = gen .. v2s(remote) .. ":FireServer(unpack(args))"
+            gen ..= v2s(remote) .. ":FireServer(unpack(args))"
         elseif remote:IsA("RemoteFunction") then
             gen = gen .. v2s(remote) .. ":InvokeServer(unpack(args))"
         end
     else
         if remote:IsA("RemoteEvent") then
-            gen = gen .. v2s(remote) .. ":FireServer()"
+            gen ..= v2s(remote) .. ":FireServer()"
         elseif remote:IsA("RemoteFunction") then
-            gen = gen .. v2s(remote) .. ":InvokeServer()"
+            gen ..= v2s(remote) .. ":InvokeServer()"
         end
     end
     prevTables = {}
@@ -993,32 +1044,19 @@ function genScript(remote, args)
 end
 
 --- value-to-string: value, string (out), level (indentation), parent table, var name, is from tovar
-
-local ufunctions = {
+local ufunctions
+ufunctions = {
     TweenInfo = function(u)
-        return ("TweenInfo.new(%s, %s, %s, %s, %s, %s)"):format(Safetostring(u.Time),Safetostring(u.EasingStyle),Safetostring(u.EasingDirection),Safetostring(u.RepeatCount),Safetostring(u.Reverses),Safetostring(u.DelayTime))
+        return `TweenInfo.new({u.Time}, {u.EasingStyle}, {u.EasingDirection}, {u.RepeatCount}, {u.Reverses}, {u.DelayTime})`
     end,
     Ray = function(u)
-        return ("Ray.new(%s)"):format(Safetostring(u))
-    end,
-    NumberSequence = function(u)
-        return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
-    end,
-    ColorSequence = function(u)
-        local ret = "ColorSequence.new("
-        for i, v in next, u.KeyPoints do
-            ret = ret ..("Color3.new(%s)"):format(Safetostring(v))
-            if i < #u.Keypoints then
-                ret = ret .. ", "
-            end
-        end
-        return ret .. ")"
+        return `Ray.new(Vector3.new({u.Origin}), Vector3.new({u.Direction}))`
     end,
     BrickColor = function(u)
-        return ("BrickColor.new(%s)"):format(Safetostring(u.Number))
+        return `BrickColor.new({u.Number})`
     end,
     NumberRange = function(u)
-        return ("NumberRange.new(%s, %s)"):format(Safetostring(u.Min),Safetostring(u.Max))
+        return `NumberRange.new({u.Min}, {u.Max})`
     end,
     Region3 = function(u)
         local center = u.CFrame.Position
@@ -1046,47 +1084,47 @@ local ufunctions = {
         if u.Front then
             table.insert(faces, "Enum.NormalId.Front")
         end
-        return ("Faces.new(%s)"):format(table.concat(faces, ", "))
+        return `Faces.new({table.concat(faces, ", ")})`
     end,
     EnumItem = function(u)
-        return Safetostring(u)
+        return tostring(u)
     end,
     Enums = function(u)
         return "Enum"
     end,
     Enum = function(u)
-        return "Enum." .. Safetostring(u)
-    end,
-    RBXScriptSignal = function(u)
-        return "RBXScriptSignal --[[RBXScriptSignal's are not supported]]"
-    end,
-    RBXScriptConnection = function(u)
-        return "RBXScriptConnection --[[RBXScriptConnection's are not supported]]"
+        return `Enum.{u}`
     end,
     Vector3 = function(u)
-        return ("Vector3.new(%s)"):format(Safetostring(u))
+        return `Vector3.new({u})`
     end,
     Vector2 = function(u)
-        return ("Vector2.new(%s)"):format(Safetostring(u))
+        return `Vector2.new({u})`
     end,
     CFrame = function(u)
-        return ("CFrame.new(%s)"):format(Safetostring(u))
+        return `CFrame.new({table.concat({u:GetComponents()},", ")})`
     end,
     PathWaypoint = function(u)
-        return ("PathWaypoint.new(%s, %s)"):format(v2s(u.Position), v2s(u.Action), u.Label)
+        return `PathWaypoint.new(Vector3.new({u.Position}), {u.Action}, "{u.Label}")`
     end,
     UDim = function(u)
-        return ("UDim.new(%s)"):format(Safetostring(u))
+        return `UDim.new({u})`
     end,
     UDim2 = function(u)
-        return ("UDim2.new(%s"):format(Safetostring(u))
+        return `UDim2.new({u})`
     end,
     Rect = function(u)
-        return ("Rect.new(%s)"):format(Safetostring(u))
+        return `Rect.new(Vector2.new({u.Min}), Vector2.new({u.Max}))`
     end,
     Color3 = function(u)
-        return ("Color3.fromRGB(%s, %s, %s)"):format(u.r*255,u.g*255,u.b*255)
-    end
+        return `Color.new({u})`
+    end,
+    RBXScriptSignal = function(u) -- The server doesnt recive this
+        return "RBXScriptSignal --[[RBXScriptSignal's are not supported]]"
+    end,
+    RBXScriptConnection = function(u) -- The server doesnt recive this
+        return "RBXScriptConnection --[[RBXScriptConnection's are not supported]]"
+    end,
 }
 
 local number_table = {
@@ -1097,16 +1135,16 @@ local number_table = {
 
 local typeofv2sfunctions = {
     number = function(v)
-        local number = Safetostring(v)
+        local number = rawtostring(v)
         return number_table[number] or number
     end,
     boolean = function(v)
-        return Safetostring(v)
+        return tostring(v)
     end,
     string = function(v,l)
         return formatstr(v, l)
     end,
-    ["function"] = function(v)
+    ["function"] = function(v) -- The server doesnt recive this
         return f2s(v)
     end,
     table = function(v, l, p, n, vtv, i, pt, path, tables, tI)
@@ -1116,7 +1154,7 @@ local typeofv2sfunctions = {
         local instance = cloneref(v)
         return i2p(instance,generation[OldDebugId(instance)])
     end,
-    userdata = function(v)
+    userdata = function(v) -- The server doesnt recive this
         if configs.advancedinfo then
             if getrawmetatable(v) then
                 return "newproxy(true)"
@@ -1132,10 +1170,10 @@ local typev2sfunctions = {
         if ufunctions[vtypeof] then
             return ufunctions[vtypeof](v)
         end
-        return ("%s(%s) --[[Generation Failure]]"):format(vtypeof,Safetostring(v))
+        return `{vtypeof}({rawtostring(v)}) --[[Generation Failure]]`
     end,
     vector = function(v)
-        return ("Vector3.new(%s)"):format(Safetostring(v))--string.format("Vector3.new(%s, %s, %s)", v2s(v.X), v2s(v.Y), v2s(v.Z))
+        return ("Vector3.new(%s)"):format(rawtostring(v))--string.format("Vector3.new(%s, %s, %s)", v2s(v.X), v2s(v.Y), v2s(v.Z))
     end
 }
 
@@ -1157,7 +1195,7 @@ function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     elseif vtypefunc then
         return vtypefunc(v,vtypeof)
     end
-    return ("%s(%s) --[[Generation Failure]]"):format(vtypeof,Safetostring(v))
+    return `{vtypeof}({rawtostring(v)}) --[[Generation Failure]]`
 end
 
 --- value-to-variable
@@ -1172,10 +1210,10 @@ function v2v(t)
     for i, v in next, t do
         if type(i) == "string" and i:match("^[%a_]+[%w_]*$") then
             ret = ret .. "local " .. i .. " = " .. v2s(v, nil, nil, i, true) .. "\n"
-        elseif Safetostring(i):match("^[%a_]+[%w_]*$") then
-            ret = ret .. "local " .. lower(Safetostring(i)) .. "_" .. Safetostring(count) .. " = " .. v2s(v, nil, nil, lower(Safetostring(i)) .. "_" .. Safetostring(count), true) .. "\n"
+        elseif rawtostring(i):match("^[%a_]+[%w_]*$") then
+            ret = ret .. "local " .. lower(rawtostring(i)) .. "_" .. rawtostring(count) .. " = " .. v2s(v, nil, nil, lower(rawtostring(i)) .. "_" .. rawtostring(count), true) .. "\n"
         else
-            ret = ret .. "local " .. type(v) .. "_" .. Safetostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. Safetostring(count), true) .. "\n"
+            ret = ret .. "local " .. type(v) .. "_" .. rawtostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. rawtostring(count), true) .. "\n"
         end
         count = count + 1
     end
@@ -1189,6 +1227,10 @@ function v2v(t)
         ret = ret .. bottomstr
     end
     return ret
+end
+
+function tabletostring(tbl: table,format: boolean)
+    
 end
 
 --- table-to-string
@@ -1222,14 +1264,14 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
     end
     for _, v in next, tables do -- checks if the current table has been serialized before
         if n and rawequal(v, t) then
-            bottomstr = bottomstr .. "\n" .. Safetostring(n) .. Safetostring(path) .. " = " .. Safetostring(n) .. Safetostring(({v2p(v, p)})[2])
+            bottomstr = bottomstr .. "\n" .. rawtostring(n) .. rawtostring(path) .. " = " .. rawtostring(n) .. rawtostring(({v2p(v, p)})[2])
             return "{} --[[DUPLICATE]]"
         end
     end
     table.insert(tables, t) -- logs table to past tables
     local s =  "{" -- start of serialization
     local size = 0
-    l = l + indent -- set indentation level
+    l += indent -- set indentation level
     for k, v in next, t do -- iterates over table
         size = size + 1 -- changes size for max limit
         if size > (getgenv().SimpleSpyMaxTableSize or 1000) then
@@ -1237,7 +1279,8 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
             break
         end
         if rawequal(k, t) then -- checks if the table being iterated over is being used as an index within itself (yay, lua)
-            bottomstr = bottomstr .. "\n" .. Safetostring(n) .. Safetostring(path) .. "[" .. Safetostring(n) .. Safetostring(path) .. "]" .. " = " .. (rawequal(v, k) and Safetostring(n) .. Safetostring(path) or v2s(v, l, p, n, vtv, k, t, path .. "[" .. Safetostring(n) .. Safetostring(path) .. "]", tables))
+            bottomstr ..= `\n{n}{path}[{n}{path}] = {(rawequal(v,k) and `{n}{path}` or v2s(v, l, p, n, vtv, k, t, `{path}[{n}{path}]`, tables))}`
+            --bottomstr = bottomstr .. "\n" .. rawtostring(n) .. rawtostring(path) .. "[" .. rawtostring(n) .. rawtostring(path) .. "]" .. " = " .. (rawequal(v, k) and rawtostring(n) .. rawtostring(path) or v2s(v, l, p, n, vtv, k, t, path .. "[" .. rawtostring(n) .. rawtostring(path) .. "]", tables))
             size -= 1
             continue
         end
@@ -1264,8 +1307,6 @@ end
 
 --- function-to-string
 function f2s(f)
-    --[[
-        No real point in having this
     for k, x in next, getgenv() do
         local isgucci, gpath
         if rawequal(x, f) then
@@ -1280,15 +1321,16 @@ function f2s(f)
                 return "getgenv()[" .. v2s(k) .. "]" .. gpath
             end
         end
-    end]]
+    end
+    
     if configs.funcEnabled then
         local funcname = info(f,"n")
         
         if funcname and funcname:match("^[%a_]+[%w_]*$") then
-            return ("function() %s end"):format(funcname)
+            return `function {funcname}() end -- Function Called: {funcname}`
         end
     end
-    return ("function() %s end"):format(Safetostring(f))
+    return ("function() %s end"):format(rawtostring(f))
 end
 
 --- instance-to-path
@@ -1325,7 +1367,7 @@ function i2p(i,customgen)
             if parent and parent.Parent == game then
                 if SafeGetService(parent.ClassName) then
                     if lower(parent.ClassName) == "workspace" then
-                        return "workspace"..out
+                        return `workspace{out}`
                     else
                         return 'game:GetService("' .. parent.ClassName .. '")' .. out
                     end
@@ -1472,7 +1514,7 @@ function handlespecials(s, indentation)
             elseif byte(char) > 126 or byte(char) < 32 then
                 resume(c, i, "\\" .. byte(char))
                 -- s = s:sub(0, i - 1) .. "\\" .. byte(char) .. s:sub(i + 1, -1)
-                i += #Safetostring(byte(char))
+                i += #rawtostring(byte(char))
             end
             if i >= n * 100 then
                 local extra = string.format('" ..\n%s"', string.rep(" ", indentation + indent))
@@ -1604,7 +1646,7 @@ function remoteHandler(data)
         end
         history[id].lastCall = tick()
     end
-		
+
     if data.remote:IsA("RemoteEvent") and lower(data.method) == "fireserver" then
         newRemote("event", data)
     elseif data.remote:IsA("RemoteFunction") and lower(data.method) == "invokeserver" then
@@ -1613,62 +1655,80 @@ function remoteHandler(data)
 end
 
 local newindex = function(method,originalfunction,...)
-    local remote = ...
+    if typeof(...) == 'Instance' then
+        local remote = cloneref(...)
 
-    if typeof(remote) == 'Instance' then
-        if method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer" then
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-                remote = cloneref(remote)
-                local id = GetDebugId(remote)
-                local blockcheck = tablecheck(blocklist,remote,id)
+        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+            if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
+            local id = GetDebugId(remote)
+            local blockcheck = tablecheck(blocklist,remote,id)
+            local args = {select(2,...)}
 
-                if not tablecheck(blacklist,remote,id) then
-                    local data = {
-                        method = method,
-                        remote = remote,
-                        args = {select(2,...)},
-                        infofunc = infofunc,
-                        callingscript = callingscript,
-                        metamethod = "__index",
-                        blockcheck = blockcheck,
-                        id = id,
-                        returnvalue = {}
-                    }
+            if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
+                local data = {
+                    method = method,
+                    remote = remote,
+                    args = deepclone(args),
+                    infofunc = infofunc,
+                    callingscript = callingscript,
+                    metamethod = "__index",
+                    blockcheck = blockcheck,
+                    id = id,
+                    returnvalue = {}
+                }
+                args = nil
 
-                    if configs.funcEnabled then
-                        data.infofunc = info(2,"f")
-                        local calling = getcallingscript()
-                        data.callingscript = calling and cloneref(calling) or nil
-                    end
-
-                    log(spawn(schedule,remoteHandler,data))
+                if configs.funcEnabled then
+                    data.infofunc = info(2,"f")
+                    local calling = getcallingscript()
+                    data.callingscript = calling and cloneref(calling) or nil
                 end
-                if blockcheck then return end
-            end
+
+                schedule(remoteHandler,data)
+
+                --[[if configs.logreturnvalues and remote:IsA("RemoteFunction") then
+                    local thread = running()
+                    local returnargs = {...}
+                    local returndata
+
+                    spawn(function()
+                        setnamecallmethod(method)
+                        returndata = originalnamecall(unpack(returnargs))
+                        data.returnvalue.data = returndata
+                        if ThreadIsNotDead(thread) then
+                            resume(thread)
+                        end
+                     end)
+                    yield()
+                    if not blockcheck then
+                        return returndata
+                    end
+                end]]
+                end
+            if blockcheck then return end
         end
     end
     return originalfunction(...)
 end
 
 local newnamecall = newcclosure(function(...)
-    local remote = ...
+    local method = getnamecallmethod()
 
-    if typeof(remote) == 'Instance' then
-        local method = getnamecallmethod()
+    if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
+        if typeof(...) == 'Instance' then
+            local remote = cloneref(...)
 
-        if method and (method == "FireServer" or method == "fireServer" or method == "InvokeServer" or method == "invokeServer") then
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                remote = cloneref(remote)
                 local id = GetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
+                local args = {select(2,...)}
 
-                if not tablecheck(blacklist,remote,id) then
+                if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
                     local data = {
                         method = method,
                         remote = remote,
-                        args = {select(2,...)},
+                        args = deepclone(args),
                         infofunc = infofunc,
                         callingscript = callingscript,
                         metamethod = "__namecall",
@@ -1676,6 +1736,7 @@ local newnamecall = newcclosure(function(...)
                         id = id,
                         returnvalue = {}
                     }
+                    args = nil
 
                     if configs.funcEnabled then
                         data.infofunc = info(2,"f")
@@ -1683,7 +1744,26 @@ local newnamecall = newcclosure(function(...)
                         data.callingscript = calling and cloneref(calling) or nil
                     end
 
-                    log(spawn(schedule,remoteHandler,data))
+                    schedule(remoteHandler,data)
+                    
+                    --[[if configs.logreturnvalues and remote.IsA(remote,"RemoteFunction") then
+                        local thread = running()
+                        local returnargs = {...}
+                        local returndata
+
+                        spawn(function()
+                            setnamecallmethod(method)
+                            returndata = originalnamecall(unpack(returnargs))
+                            data.returnvalue.data = returndata
+                            if ThreadIsNotDead(thread) then
+                                resume(thread)
+                            end
+                        end)
+                        yield()
+                        if not blockcheck then
+                            return returndata
+                        end
+                    end]]
                 end
                 if blockcheck then return end
             end
@@ -1714,10 +1794,8 @@ local function disablehooks()
         else
             hookfunction(getrawmetatable(game).__namecall,originalnamecall)
         end
-        if not getclipboard then
-            hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
-            hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
-        end
+        hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
+        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
     end
 end
 
@@ -1735,10 +1813,8 @@ function toggleSpy()
             else
                 oldnamecall = hookfunction(getrawmetatable(game).__namecall,clonefunction(newnamecall))
             end
-            if not getclipboard then
-                originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
-                originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
-            end
+            originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
+            originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
         end
         originalnamecall = originalnamecall or function(...)
             return oldnamecall(...)
@@ -1844,7 +1920,7 @@ if not getgenv().SimpleSpyExecuted then
         writefiletoggle = true
     else
         shutdown()
-        ErrorPrompt("An error has occured:\n"..Safetostring(err))
+        ErrorPrompt("An error has occured:\n"..rawtostring(err))
         return
     end
 else
@@ -1946,7 +2022,7 @@ function()
     local func = selected and selected.Function
     if func then
         local typeoffunc = typeof(func)
-        getgenv().func = func
+
         if typeoffunc ~= 'string' then
             codebox:setRaw("--[[Generating Function Info please wait]]")
             RunService.Heartbeat:Wait()
@@ -1954,7 +2030,7 @@ function()
             local SourceScript = rawget(getfenv(func),"script")
             local CallingScript = selected.Source or nil
             local info = {}
-
+            
             info = {
                 info = getinfo(func),
                 constants = lclosure and deepclone(getconstants(func)) or "N/A --Lua Closure expected got C Closure",
@@ -2110,6 +2186,24 @@ newButton("Decompile",
         end
     end)
 
+    newButton(
+        "returnvalue",
+        function() return "Get a Remote's return data" end,
+        function()
+            if selected then
+                local Remote = selected.Remote
+                if Remote and Remote:IsA("RemoteFunction") then
+                    if selected.returnvalue and selected.returnvalue.data then
+                        return codebox:setRaw(v2s(selected.returnvalue.data))
+                    end
+                    return codebox:setRaw("No data was returned")
+                else
+                    codebox:setRaw("RemoteFunction expected got "..(Remote and Remote.ClassName))
+                end
+            end
+        end
+    )
+
 newButton(
     "Disable Info",
     function() return string.format("[%s] Toggle function info (because it can cause lag in some games)", configs.funcEnabled and "ENABLED" or "DISABLED") end,
@@ -2138,6 +2232,14 @@ function()
     TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
 end)
 
+--[[newButton("Log returnvalues",function()
+    return ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
+end,
+function()
+    configs.logreturnvalues = not configs.logreturnvalues
+    TextLabel.Text = ("[BETA] [%s] Log RemoteFunction's return values"):format(configs.logreturnvalues and "ENABLED" or "DISABLED")
+end)]]
+
 newButton("Advanced Info",function()
     return ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
 end,
@@ -2146,7 +2248,6 @@ function()
     TextLabel.Text = ("[%s] Display more remoteinfo"):format(configs.advancedinfo and "ENABLED" or "DISABLED")
 end)
 
-if syn and syn.request then request = syn.request end
 newButton("Join Discord",function()
     return "Joins The Simple Spy Discord"
 end,
