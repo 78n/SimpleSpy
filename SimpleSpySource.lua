@@ -2,7 +2,7 @@ if getgenv().SimpleSpyExecuted and type(getgenv().SimpleSpyShutdown) == "functio
     getgenv().SimpleSpyShutdown()
 end
 
-local configs = {
+local realconfigs = {
     logcheckcaller = false,
     autoblock = false,
     funcEnabled = true,
@@ -10,6 +10,13 @@ local configs = {
     --logreturnvalues = false,
     supersecretdevtoggle = false
 }
+
+local configs = newproxy(true)
+local configsmetatable = getmetatable(configs)
+
+configsmetatable.__index = function(self,index)
+    return realconfigs[index]
+end
 
 local oth = syn and syn.oth
 local unhook = oth and oth.unhook
@@ -39,24 +46,6 @@ local function blankfunction(...)
     return ...
 end
 
-local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
-    return ErrorPrompt("Attempted to set clipboard: "..(...),true)
-end
-
-local hookmetamethod = hookmetamethod or (setreadonly and getrawmetatable) and function(obj: object, metamethod: string, func: Function)
-    local old = getrawmetatable(obj)
-
-    if hookfunction then
-        return hookfunction(old[metamethod],func)
-    else
-        local oldmetamethod = old[metamethod]
-        setreadonly(old,false)
-        old[metamethod] = func
-        setreadonly(old,true)
-        return oldmetamethod
-    end
-end
-
 local get_thread_identity = (syn and syn.get_thread_identity) or getidentity or getthreadidentity
 local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
 local islclosure = islclosure or is_l_closure
@@ -78,18 +67,24 @@ end
 local makereadonly = makereadonly or function(tbl)
     setreadonly(tbl,true)
 end
-
 local isreadonly = isreadonly or table.isfrozen
 
-local GetDebugId = function(obj: Instance): string
-    if threadfuncs then
-        local old = get_thread_identity()
-        set_thread_identity(8)
-        local id = OldDebugId(obj)
-        set_thread_identity(old)
-        return id
+local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
+    return ErrorPrompt("Attempted to set clipboard: "..(...),true)
+end
+
+local hookmetamethod = hookmetamethod or (makewriteable and makereadonly and getrawmetatable) and function(obj: object, metamethod: string, func: Function)
+    local old = getrawmetatable(obj)
+
+    if hookfunction then
+        return hookfunction(old[metamethod],func)
+    else
+        local oldmetamethod = old[metamethod]
+        makewriteable(old)
+        old[metamethod] = func
+        makereadonly(old)
+        return oldmetamethod
     end
-    return obj
 end
 
 local function Create(instance, properties, children)
@@ -148,6 +143,8 @@ local function deepclone(args: table, copies: table): table
                 copy[deepclone(i, copies)] = deepclone(v, copies)
             end
         end
+    elseif typeof(args) == "Instance" then
+        copy = cloneref(args)
     else
         copy = args
     end
@@ -186,7 +183,10 @@ local TextService = SafeGetService("TextService")
 local http = SafeGetService("HttpService")
 
 local function jsone(str) return http:JSONEncode(str) end
-local function jsond(str) return http:JSONDecode(str) end
+local function jsond(str)
+    local suc,err = pcall(http.JSONDecode,http,str)
+    return suc and err or suc
+end
 
 function ErrorPrompt(Message,state)
     if getrenv then
@@ -219,7 +219,7 @@ end
 local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
 
 local SimpleSpy3 = Create("ScreenGui",{ResetOnSpawn = false})
-local Storage = Create("Folder",{Parent = SimpleSpy3})
+local Storage = Create("Folder",{})
 local Background = Create("Frame",{Parent = SimpleSpy3,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,Position = UDim2.new(0, 500, 0, 200),Size = UDim2.new(0, 450, 0, 268)})
 local LeftPanel = Create("Frame",{Parent = Background,BackgroundColor3 = Color3.fromRGB(53, 52, 55),BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 19),Size = UDim2.new(0, 131, 0, 249)})
 local LogList = Create("ScrollingFrame",{Parent = LeftPanel,Active = true,BackgroundColor3 = Color3.new(1, 1, 1),BackgroundTransparency = 1,BorderSizePixel = 0,Position = UDim2.new(0, 0, 0, 9),Size = UDim2.new(0, 131, 0, 232),CanvasSize = UDim2.new(0, 0, 0, 0),ScrollBarThickness = 4})
@@ -299,13 +299,25 @@ local connections = {}
 local DecompiledScripts = {}
 local generation = {}
 local running_threads = {}
-local writefiletoggle = false
 local originalnamecall
 
 local remoteEvent = Instance.new("RemoteEvent",Storage)
 local remoteFunction = Instance.new("RemoteFunction",Storage)
+local NamecallHandler = Instance.new("BindableEvent",Storage)
+local IndexHandler = Instance.new("BindableEvent",Storage)
+local GetDebugIdHandler = Instance.new("BindableFunction",Storage) --Thanks engo for the idea of using BindableFunctions
+
 local originalEvent = remoteEvent.FireServer
 local originalFunction = remoteFunction.InvokeServer
+local GetDebugIDInvoke = GetDebugIdHandler.Invoke
+
+function GetDebugIdHandler.OnInvoke(obj: Instance) -- To avoid having to set thread identity and ect
+    return OldDebugId(obj)
+end
+
+local function ThreadGetDebugId(obj: Instance): string 
+    return GetDebugIDInvoke(GetDebugIdHandler,obj) -- indexing to avoid having to setnamecall later
+end
 
 local synv3 = false
 
@@ -317,18 +329,18 @@ if syn and identifyexecutor then
 end
 
 xpcall(function()
-    local cachedconfigs = isfile and readfile and isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
+    if isfile and readfile and isfolder and makefolder then
+        local cachedconfigs = isfile("SimpleSpy//Settings.json") and jsond(readfile("SimpleSpy//Settings.json"))
 
-    if cachedconfigs then
-        for i,v in next, configs do
-            if cachedconfigs[i] == nil then
-                cachedconfigs[i] = v
+        if cachedconfigs then
+            for i,v in next, realconfigs do
+                if cachedconfigs[i] == nil then
+                    cachedconfigs[i] = v
+                end
             end
+            realconfigs = cachedconfigs
         end
-        configs = cachedconfigs
-    end
 
-    if makefolder and isfolder and isfile and writefile then
         if not isfolder("SimpleSpy") then
             makefolder("SimpleSpy")
         end
@@ -336,19 +348,23 @@ xpcall(function()
             makefolder("SimpleSpy//Assets")
         end
         if not isfile("SimpleSpy//Settings.json") then
-            writefile("SimpleSpy//Settings.json",jsone(configs))
+            writefile("SimpleSpy//Settings.json",jsone(realconfigs))
         end
-        spawn(function()
-            repeat wait(6)
-                writefile("SimpleSpy//Settings.json",jsone(configs))
-            until not writefiletoggle
-        end)
+
+        configsmetatable.__newindex = function(self,index,newindex)
+            realconfigs[index] = newindex
+            writefile("SimpleSpy//Settings.json",jsone(realconfigs))
+        end
+    else
+        configsmetatable.__newindex = function(self,index,newindex)
+            realconfigs[index] = newindex
+        end
     end
 end,function(err)
     ErrorPrompt(("An error has occured: (%s)"):format(err))
 end)
 
-local function log(thread: thread)
+local function logthread(thread: thread)
     table.insert(running_threads,thread)
 end
 
@@ -935,6 +951,7 @@ function newButton(name, description, onClick)
         makeToolTip(false)
     end)
     Button.MouseButton1Click:Connect(function(...)
+        logthread(running())
         onClick(FunctionTemplate, ...)
     end)
     updateFunctionCanvas()
@@ -974,6 +991,7 @@ function newRemote(type, data)
 
     logs[#logs + 1] = log
     local connect = Button.MouseButton1Click:Connect(function()
+        logthread(running())
         eventSelect(RemoteTemplate)
         log.GenScript = genScript(log.Remote, log.args)
         if blocked then
@@ -1044,13 +1062,45 @@ function genScript(remote, args)
 end
 
 --- value-to-string: value, string (out), level (indentation), parent table, var name, is from tovar
+local CustomGeneration = {
+    Vector3 = (function()
+        local temp = {}
+        for i,v in Vector3 do
+            if type(v) == "vector" then
+                temp[v] = `Vector3.{i}`
+            end
+        end
+        return temp
+    end)(),
+    Vector2 = (function()
+        local temp = {}
+        for i,v in Vector2 do
+            if type(v) == "userdata" then
+                temp[v] = `Vector2.{i}`
+            end
+        end
+        return temp
+    end)(),
+    CFrame = {
+        [CFrame.identity] = "CFrame.identity"
+    }
+}
+
+local number_table = {
+    ["inf"] = "math.huge",
+    ["-inf"] = "-math.huge",
+    ["nan"] = "0/0"
+}
+
 local ufunctions
 ufunctions = {
     TweenInfo = function(u)
         return `TweenInfo.new({u.Time}, {u.EasingStyle}, {u.EasingDirection}, {u.RepeatCount}, {u.Reverses}, {u.DelayTime})`
     end,
     Ray = function(u)
-        return `Ray.new(Vector3.new({u.Origin}), Vector3.new({u.Direction}))`
+        local Vector3tostring = ufunctions["Vector3"]
+
+        return `Ray.new({Vector3tostring(u.Origin)}, {Vector3tostring(u.Direction)})`
     end,
     BrickColor = function(u)
         return `BrickColor.new({u.Number})`
@@ -1060,9 +1110,10 @@ ufunctions = {
     end,
     Region3 = function(u)
         local center = u.CFrame.Position
-        local centersize = u.Size
-        
-        return ("Region3.new(%s, %s)"):format(v2s(center-centersize/2),v2s(center+centersize/2))
+        local centersize = u.Size/2
+        local Vector3tostring = ufunctions["Vector3"]
+
+        return `Region3.new({Vector3tostring(center-centersize)}, {Vector3tostring(center+centersize)})`
     end,
     Faces = function(u)
         local faces = {}
@@ -1096,16 +1147,16 @@ ufunctions = {
         return `Enum.{u}`
     end,
     Vector3 = function(u)
-        return `Vector3.new({u})`
+        return CustomGeneration.Vector3[u] or `Vector3.new({u})`
     end,
     Vector2 = function(u)
-        return `Vector2.new({u})`
+        return CustomGeneration.Vector2[u] or `Vector2.new({u})`
     end,
     CFrame = function(u)
-        return `CFrame.new({table.concat({u:GetComponents()},", ")})`
+        return CustomGeneration.CFrame[u] or `CFrame.new({table.concat({u:GetComponents()},", ")})`
     end,
     PathWaypoint = function(u)
-        return `PathWaypoint.new(Vector3.new({u.Position}), {u.Action}, "{u.Label}")`
+        return `PathWaypoint.new({ufunctions["Vector3"](u.Position)}, {u.Action}, "{u.Label}")`
     end,
     UDim = function(u)
         return `UDim.new({u})`
@@ -1114,10 +1165,11 @@ ufunctions = {
         return `UDim2.new({u})`
     end,
     Rect = function(u)
-        return `Rect.new(Vector2.new({u.Min}), Vector2.new({u.Max}))`
+        local Vector2tostring = ufunctions["Vector2"]
+        return `Rect.new({Vector2tostring(u.Min)}, {Vector2tostring(u.Max)})`
     end,
     Color3 = function(u)
-        return `Color.new({u})`
+        return `Color3.new({u.R}, {u.G}, {u.B})`
     end,
     RBXScriptSignal = function(u) -- The server doesnt recive this
         return "RBXScriptSignal --[[RBXScriptSignal's are not supported]]"
@@ -1127,15 +1179,9 @@ ufunctions = {
     end,
 }
 
-local number_table = {
-    ["inf"] = "math.huge",
-    ["-inf"] = "-math.huge",
-    ["nan"] = "0/0"
-}
-
 local typeofv2sfunctions = {
     number = function(v)
-        local number = rawtostring(v)
+        local number = tostring(v)
         return number_table[number] or number
     end,
     boolean = function(v)
@@ -1151,8 +1197,8 @@ local typeofv2sfunctions = {
         return t2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     end,
     Instance = function(v)
-        local instance = cloneref(v)
-        return i2p(instance,generation[OldDebugId(instance)])
+        local DebugId = OldDebugId(v)
+        return i2p(v,generation[DebugId])
     end,
     userdata = function(v) -- The server doesnt recive this
         if configs.advancedinfo then
@@ -1172,14 +1218,11 @@ local typev2sfunctions = {
         end
         return `{vtypeof}({rawtostring(v)}) --[[Generation Failure]]`
     end,
-    vector = function(v)
-        return ("Vector3.new(%s)"):format(rawtostring(v))--string.format("Vector3.new(%s, %s, %s)", v2s(v.X), v2s(v.Y), v2s(v.Z))
-    end
+    vector = ufunctions["Vector3"]
 }
 
 
 function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
-    log(running())
     local vtypeof = typeof(v)
     local vtypeoffunc = typeofv2sfunctions[vtypeof]
     local vtypefunc = typev2sfunctions[type(v)]
@@ -1201,7 +1244,6 @@ end
 --- value-to-variable
 --- @param t any
 function v2v(t)
-    log(running())
     topstr = ""
     bottomstr = ""
     getnilrequired = false
@@ -1330,7 +1372,7 @@ function f2s(f)
             return `function {funcname}() end -- Function Called: {funcname}`
         end
     end
-    return ("function() %s end"):format(rawtostring(f))
+    return tostring(f)
 end
 
 --- instance-to-path
@@ -1660,7 +1702,7 @@ local newindex = function(method,originalfunction,...)
 
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
             if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-            local id = GetDebugId(remote)
+            local id = ThreadGetDebugId(remote)
             local blockcheck = tablecheck(blocklist,remote,id)
             local args = {select(2,...)}
 
@@ -1720,7 +1762,7 @@ local newnamecall = newcclosure(function(...)
 
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                local id = GetDebugId(remote)
+                local id = ThreadGetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
                 local args = {select(2,...)}
 
@@ -1849,9 +1891,9 @@ local function shutdown()
     clear(remoteLogs)
     disablehooks()
     SimpleSpy3:Destroy()
+    Storage:Destroy()
     UserInputService.MouseIconEnabled = true
     getgenv().SimpleSpyExecuted = false
-    writefiletoggle = false
 end
 
 -- main
@@ -1866,7 +1908,7 @@ if not getgenv().SimpleSpyExecuted then
             ErrorPrompt("Simple Spy V3 will not function to it's fullest capablity due to your executor not supporting hookmetamethod.",true)
         end
         codebox = Highlight.new(CodeBox)
-        log(spawn(function()
+        logthread(spawn(function()
             local suc,err = pcall(game.HttpGet,game,"https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua")
             codebox:setRaw((suc and err) or "")
         end))
@@ -1899,13 +1941,13 @@ if not getgenv().SimpleSpyExecuted then
         table.insert(connections, UserInputService.InputBegan:Connect(backgroundUserInput))
         connectResize()
         SimpleSpy3.Enabled = true
-        log(spawn(function()
+        logthread(spawn(function()
             delay(1,onToggleButtonUnhover)
         end))
         schedulerconnect = RunService.Heartbeat:Connect(taskscheduler)
         bringBackOnResize()
         SimpleSpy3.Parent = (gethui and gethui()) or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3)) or CoreGui
-        log(spawn(function()
+        logthread(spawn(function()
             local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait() or Players.LocalPlayer
             generation = {
                 [OldDebugId(lp)] = 'game:GetService("Players").LocalPlayer',
@@ -1917,7 +1959,6 @@ if not getgenv().SimpleSpyExecuted then
     end)
     if succeeded then
         getgenv().SimpleSpyExecuted = true
-        writefiletoggle = true
     else
         shutdown()
         ErrorPrompt("An error has occured:\n"..rawtostring(err))
@@ -2162,31 +2203,37 @@ newButton(
 
 --- Attempts to decompile the source script
 newButton("Decompile",
-    function() return "Decompile source script" end,
     function()
-        if selected and selected.Source then
-            local Source = selected.Source
-            if not DecompiledScripts[Source] then
-                codebox:setRaw("--[[Decompiling]]")
+        return "Decompile source script"
+    end,function()
+        if decompile then
+            if selected and selected.Source then
+                local Source = selected.Source
+                if not DecompiledScripts[Source] then
+                    codebox:setRaw("--[[Decompiling]]")
 
-                xpcall(function()
-                    local decompiledsource = decompile(Source):gsub("-- Decompiled with the Synapse X Luau decompiler.","")
-                    local Sourcev2s = v2s(Source)
-                    if (decompiledsource):find("script") and Sourcev2s then
-                        DecompiledScripts[Source] = ("local script = %s\n%s"):format(Sourcev2s,decompiledsource)
-                    end
-                end,function(err)
-                    return codebox:setRaw(("--[[\nAn error has occured\n%s\n]]"):format(err))
-                end)
+                    xpcall(function()
+                        local decompiledsource = decompile(Source):gsub("-- Decompiled with the Synapse X Luau decompiler.","")
+                        local Sourcev2s = v2s(Source)
+                        if (decompiledsource):find("script") and Sourcev2s then
+                            DecompiledScripts[Source] = ("local script = %s\n%s"):format(Sourcev2s,decompiledsource)
+                        end
+                    end,function(err)
+                        return codebox:setRaw(("--[[\nAn error has occured\n%s\n]]"):format(err))
+                    end)
+                end
+                codebox:setRaw(DecompiledScripts[Source] or "--No Source Found")
+                TextLabel.Text = "Done!"
+            else
+                TextLabel.Text = "Source not found!"
             end
-            codebox:setRaw(DecompiledScripts[Source] or "--No Source Found")
-            TextLabel.Text = "Done!"
         else
-            TextLabel.Text = "Source not found!"
+            TextLabel.Text = "Missing function (decompile)"
         end
-    end)
+    end
+)
 
-    newButton(
+    --[[newButton(
         "returnvalue",
         function() return "Get a Remote's return data" end,
         function()
@@ -2202,7 +2249,7 @@ newButton("Decompile",
                 end
             end
         end
-    )
+    )]]
 
 newButton(
     "Disable Info",
