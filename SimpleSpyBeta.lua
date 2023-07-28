@@ -74,7 +74,7 @@ local cloneref = cloneref or blankfunction
 local request = request or syn and syn.request
 local isreadonly = isreadonly or table.isfrozen
 
-local GetDebugId = function(obj: Instance): string
+local GetDebugId = function(obj: Instance): string -- Unused
     if threadfuncs then
         local old = get_thread_identity()
         set_thread_identity(8)
@@ -83,6 +83,10 @@ local GetDebugId = function(obj: Instance): string
         return id
     end
     return obj
+end
+
+local GetInstanceAddress = function(obj: Instance): string
+    return tostring(Instance)
 end
 
 local function Create(instance, properties, children)
@@ -1663,7 +1667,7 @@ local newindex = function(method,originalfunction,...)
 
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
             if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-            local id = GetDebugId(remote)
+            local id = GetInstanceAddress(remote)
             local blockcheck = tablecheck(blocklist,remote,id)
             local args = {select(2,...)}
 
@@ -1723,7 +1727,7 @@ local newnamecall = newcclosure(function(...)
 
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                local id = GetDebugId(remote)
+                local id = GetInstanceAddress(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
                 local args = {select(2,...)}
 
