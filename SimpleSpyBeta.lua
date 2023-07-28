@@ -74,7 +74,7 @@ local cloneref = cloneref or blankfunction
 local request = request or syn and syn.request
 local isreadonly = isreadonly or table.isfrozen
 
-local GetDebugId = function(obj: Instance): string
+local GetDebugId = function(obj: Instance): string -- Unused
     if threadfuncs then
         local old = get_thread_identity()
         set_thread_identity(8)
@@ -1663,11 +1663,10 @@ local newindex = function(method,originalfunction,...)
 
         if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
             if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
-            local id = GetDebugId(remote)
-            local blockcheck = tablecheck(blocklist,remote,id)
+            local blockcheck = tablecheck(blocklist,remote,remote)
             local args = {select(2,...)}
 
-            if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
+            if not tablecheck(blacklist,remote,remote) and not IsCyclicTable(args) then
                 local data = {
                     method = method,
                     remote = remote,
@@ -1676,7 +1675,7 @@ local newindex = function(method,originalfunction,...)
                     callingscript = callingscript,
                     metamethod = "__index",
                     blockcheck = blockcheck,
-                    id = id,
+                    id = remote,
                     returnvalue = {}
                 }
                 args = nil
@@ -1723,11 +1722,10 @@ local newnamecall = newcclosure(function(...)
 
             if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
-                local id = GetDebugId(remote)
-                local blockcheck = tablecheck(blocklist,remote,id)
+                local blockcheck = tablecheck(blocklist,remote,remote)
                 local args = {select(2,...)}
 
-                if not tablecheck(blacklist,remote,id) and not IsCyclicTable(args) then
+                if not tablecheck(blacklist,remote,remote) and not IsCyclicTable(args) then
                     local data = {
                         method = method,
                         remote = remote,
@@ -1736,7 +1734,7 @@ local newnamecall = newcclosure(function(...)
                         callingscript = callingscript,
                         metamethod = "__namecall",
                         blockcheck = blockcheck,
-                        id = id,
+                        id = remote,
                         returnvalue = {}
                     }
                     args = nil
