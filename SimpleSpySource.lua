@@ -24,7 +24,7 @@ local hook = oth and oth.hook
 
 local lower = string.lower
 local byte = string.byte
-local round = math.round
+-- local round = math.round
 local running = coroutine.running
 local resume = coroutine.resume
 local status = coroutine.status
@@ -36,12 +36,12 @@ local info = debug.info
 
 local IsA = game.IsA
 local tostring = tostring
-local tonumber = tonumber
+-- local tonumber = tonumber
 local delay = task.delay
 local spawn = task.spawn
 local wait = task.wait
 local clear = table.clear
-local clone = table.clone
+-- local clone = table.clone
 
 local function blankfunction(...)
 	return ...
@@ -185,7 +185,7 @@ local Players = SafeGetService("Players")
 local RunService = SafeGetService("RunService")
 local UserInputService = SafeGetService("UserInputService")
 local TweenService = SafeGetService("TweenService")
-local ContentProvider = SafeGetService("ContentProvider")
+-- local ContentProvider = SafeGetService("ContentProvider")
 local TextService = SafeGetService("TextService")
 local http = SafeGetService("HttpService")
 
@@ -202,26 +202,23 @@ function ErrorPrompt(Message, state)
 		local ErrorPrompt =
 			getrenv().require(CoreGui:WaitForChild("RobloxGui"):WaitForChild("Modules"):WaitForChild("ErrorPrompt")) -- File can be located in your roblox folder (C:\Users\%Username%\AppData\Local\Roblox\Versions\whateverversionitis\ExtraContent\scripts\CoreScripts\Modules)
 		local prompt = ErrorPrompt.new("Default", { HideErrorCode = true })
-		local ErrorStoarge = Create("ScreenGui", { Parent = CoreGui, ResetOnSpawn = false })
+		local ErrorStorage = Create("ScreenGui", { Parent = CoreGui, ResetOnSpawn = false })
 		local thread = state and running()
-		prompt:setParent(ErrorStoarge)
+		prompt:setParent(ErrorStorage)
 		prompt:setErrorTitle("Simple Spy V3 Error")
-		prompt:updateButtons(
+		prompt:updateButtons({
 			{
-				{
-					Text = "Proceed",
-					Callback = function()
-						prompt:_close()
-						ErrorStoarge:Destroy()
-						if thread then
-							resume(thread)
-						end
-					end,
-					Primary = true,
-				},
+				Text = "Proceed",
+				Callback = function()
+					prompt:_close()
+					ErrorStorage:Destroy()
+					if thread then
+						resume(thread)
+					end
+				end,
+				Primary = true,
 			},
-			"Default"
-		)
+		}, "Default")
 		prompt:_open(Message)
 		if thread then
 			yield(thread)
@@ -236,217 +233,166 @@ local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile(
 
 local SimpleSpy3 = Create("ScreenGui", { ResetOnSpawn = false })
 local Storage = Create("Folder", {})
-local Background = Create(
-	"Frame",
-	{
-		Parent = SimpleSpy3,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 500, 0, 200),
-		Size = UDim2.new(0, 450, 0, 268),
-	}
-)
-local LeftPanel = Create(
-	"Frame",
-	{
-		Parent = Background,
-		BackgroundColor3 = Color3.fromRGB(53, 52, 55),
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0, 19),
-		Size = UDim2.new(0, 131, 0, 249),
-	}
-)
-local LogList = Create(
-	"ScrollingFrame",
-	{
-		Parent = LeftPanel,
-		Active = true,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 0, 0, 9),
-		Size = UDim2.new(0, 131, 0, 232),
-		CanvasSize = UDim2.new(0, 0, 0, 0),
-		ScrollBarThickness = 4,
-	}
-)
+local Background = Create("Frame", {
+	Parent = SimpleSpy3,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 500, 0, 200),
+	Size = UDim2.new(0, 450, 0, 268),
+})
+local LeftPanel = Create("Frame", {
+	Parent = Background,
+	BackgroundColor3 = Color3.fromRGB(53, 52, 55),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 0, 19),
+	Size = UDim2.new(0, 131, 0, 249),
+})
+local LogList = Create("ScrollingFrame", {
+	Parent = LeftPanel,
+	Active = true,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 0, 0, 9),
+	Size = UDim2.new(0, 131, 0, 232),
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ScrollBarThickness = 4,
+})
 local UIListLayout = Create(
 	"UIListLayout",
 	{ Parent = LogList, HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder }
 )
-local RightPanel = Create(
-	"Frame",
-	{
-		Parent = Background,
-		BackgroundColor3 = Color3.fromRGB(37, 36, 38),
-		BorderSizePixel = 0,
-		Position = UDim2.new(0, 131, 0, 19),
-		Size = UDim2.new(0, 319, 0, 249),
-	}
-)
-local CodeBox = Create(
-	"Frame",
-	{
-		Parent = RightPanel,
-		BackgroundColor3 = Color3.new(0.0823529, 0.0745098, 0.0784314),
-		BorderSizePixel = 0,
-		Size = UDim2.new(0, 319, 0, 119),
-	}
-)
-local ScrollingFrame = Create(
-	"ScrollingFrame",
-	{
-		Parent = RightPanel,
-		Active = true,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 0, 0.5, 0),
-		Size = UDim2.new(1, 0, 0.5, -9),
-		CanvasSize = UDim2.new(0, 0, 0, 0),
-		ScrollBarThickness = 4,
-	}
-)
-local UIGridLayout = Create(
-	"UIGridLayout",
-	{
-		Parent = ScrollingFrame,
-		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		SortOrder = Enum.SortOrder.LayoutOrder,
-		CellPadding = UDim2.new(0, 0, 0, 0),
-		CellSize = UDim2.new(0, 94, 0, 27),
-	}
-)
-local TopBar = Create(
-	"Frame",
-	{
-		Parent = Background,
-		BackgroundColor3 = Color3.fromRGB(37, 35, 38),
-		BorderSizePixel = 0,
-		Size = UDim2.new(0, 450, 0, 19),
-	}
-)
-local Simple = Create(
-	"TextButton",
-	{
-		Parent = TopBar,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		AutoButtonColor = false,
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 5, 0, 0),
-		Size = UDim2.new(0, 57, 0, 18),
-		Font = Enum.Font.SourceSansBold,
-		Text = "SimpleSpy",
-		TextColor3 = Color3.new(1, 1, 1),
-		TextSize = 14,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	}
-)
-local CloseButton = Create(
-	"TextButton",
-	{
-		Parent = TopBar,
-		BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -19, 0, 0),
-		Size = UDim2.new(0, 19, 0, 19),
-		Font = Enum.Font.SourceSans,
-		Text = "",
-		TextColor3 = Color3.new(0, 0, 0),
-		TextSize = 14,
-	}
-)
-local ImageLabel = Create(
-	"ImageLabel",
-	{
-		Parent = CloseButton,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 5, 0, 5),
-		Size = UDim2.new(0, 9, 0, 9),
-		Image = "http://www.roblox.com/asset/?id=5597086202",
-	}
-)
-local MaximizeButton = Create(
-	"TextButton",
-	{
-		Parent = TopBar,
-		BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -38, 0, 0),
-		Size = UDim2.new(0, 19, 0, 19),
-		Font = Enum.Font.SourceSans,
-		Text = "",
-		TextColor3 = Color3.new(0, 0, 0),
-		TextSize = 14,
-	}
-)
-local ImageLabel_2 = Create(
-	"ImageLabel",
-	{
-		Parent = MaximizeButton,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 5, 0, 5),
-		Size = UDim2.new(0, 9, 0, 9),
-		Image = "http://www.roblox.com/asset/?id=5597108117",
-	}
-)
-local MinimizeButton = Create(
-	"TextButton",
-	{
-		Parent = TopBar,
-		BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
-		BorderSizePixel = 0,
-		Position = UDim2.new(1, -57, 0, 0),
-		Size = UDim2.new(0, 19, 0, 19),
-		Font = Enum.Font.SourceSans,
-		Text = "",
-		TextColor3 = Color3.new(0, 0, 0),
-		TextSize = 14,
-	}
-)
-local ImageLabel_3 = Create(
-	"ImageLabel",
-	{
-		Parent = MinimizeButton,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 5, 0, 5),
-		Size = UDim2.new(0, 9, 0, 9),
-		Image = "http://www.roblox.com/asset/?id=5597105827",
-	}
-)
+local RightPanel = Create("Frame", {
+	Parent = Background,
+	BackgroundColor3 = Color3.fromRGB(37, 36, 38),
+	BorderSizePixel = 0,
+	Position = UDim2.new(0, 131, 0, 19),
+	Size = UDim2.new(0, 319, 0, 249),
+})
+local CodeBox = Create("Frame", {
+	Parent = RightPanel,
+	BackgroundColor3 = Color3.new(0.0823529, 0.0745098, 0.0784314),
+	BorderSizePixel = 0,
+	Size = UDim2.new(0, 319, 0, 119),
+})
+local ScrollingFrame = Create("ScrollingFrame", {
+	Parent = RightPanel,
+	Active = true,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 0, 0.5, 0),
+	Size = UDim2.new(1, 0, 0.5, -9),
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	ScrollBarThickness = 4,
+})
+local UIGridLayout = Create("UIGridLayout", {
+	Parent = ScrollingFrame,
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	CellPadding = UDim2.new(0, 0, 0, 0),
+	CellSize = UDim2.new(0, 94, 0, 27),
+})
+local TopBar = Create("Frame", {
+	Parent = Background,
+	BackgroundColor3 = Color3.fromRGB(37, 35, 38),
+	BorderSizePixel = 0,
+	Size = UDim2.new(0, 450, 0, 19),
+})
+local Simple = Create("TextButton", {
+	Parent = TopBar,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	AutoButtonColor = false,
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 5, 0, 0),
+	Size = UDim2.new(0, 57, 0, 18),
+	Font = Enum.Font.SourceSansBold,
+	Text = "SimpleSpy",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 14,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local CloseButton = Create("TextButton", {
+	Parent = TopBar,
+	BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -19, 0, 0),
+	Size = UDim2.new(0, 19, 0, 19),
+	Font = Enum.Font.SourceSans,
+	Text = "",
+	TextColor3 = Color3.new(0, 0, 0),
+	TextSize = 14,
+})
+local ImageLabel = Create("ImageLabel", {
+	Parent = CloseButton,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 5, 0, 5),
+	Size = UDim2.new(0, 9, 0, 9),
+	Image = "http://www.roblox.com/asset/?id=5597086202",
+})
+local MaximizeButton = Create("TextButton", {
+	Parent = TopBar,
+	BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -38, 0, 0),
+	Size = UDim2.new(0, 19, 0, 19),
+	Font = Enum.Font.SourceSans,
+	Text = "",
+	TextColor3 = Color3.new(0, 0, 0),
+	TextSize = 14,
+})
+local ImageLabel_2 = Create("ImageLabel", {
+	Parent = MaximizeButton,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 5, 0, 5),
+	Size = UDim2.new(0, 9, 0, 9),
+	Image = "http://www.roblox.com/asset/?id=5597108117",
+})
+local MinimizeButton = Create("TextButton", {
+	Parent = TopBar,
+	BackgroundColor3 = Color3.new(0.145098, 0.141176, 0.14902),
+	BorderSizePixel = 0,
+	Position = UDim2.new(1, -57, 0, 0),
+	Size = UDim2.new(0, 19, 0, 19),
+	Font = Enum.Font.SourceSans,
+	Text = "",
+	TextColor3 = Color3.new(0, 0, 0),
+	TextSize = 14,
+})
+local ImageLabel_3 = Create("ImageLabel", {
+	Parent = MinimizeButton,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 5, 0, 5),
+	Size = UDim2.new(0, 9, 0, 9),
+	Image = "http://www.roblox.com/asset/?id=5597105827",
+})
 
-local ToolTip = Create(
-	"Frame",
-	{
-		Parent = SimpleSpy3,
-		BackgroundColor3 = Color3.fromRGB(26, 26, 26),
-		BackgroundTransparency = 0.1,
-		BorderColor3 = Color3.new(1, 1, 1),
-		Size = UDim2.new(0, 200, 0, 50),
-		ZIndex = 3,
-		Visible = false,
-	}
-)
-local TextLabel = Create(
-	"TextLabel",
-	{
-		Parent = ToolTip,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 2, 0, 2),
-		Size = UDim2.new(0, 196, 0, 46),
-		ZIndex = 3,
-		Font = Enum.Font.SourceSans,
-		Text = "This is some slightly longer text.",
-		TextColor3 = Color3.new(1, 1, 1),
-		TextSize = 14,
-		TextWrapped = true,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextYAlignment = Enum.TextYAlignment.Top,
-	}
-)
+local ToolTip = Create("Frame", {
+	Parent = SimpleSpy3,
+	BackgroundColor3 = Color3.fromRGB(26, 26, 26),
+	BackgroundTransparency = 0.1,
+	BorderColor3 = Color3.new(1, 1, 1),
+	Size = UDim2.new(0, 200, 0, 50),
+	ZIndex = 3,
+	Visible = false,
+})
+local TextLabel = Create("TextLabel", {
+	Parent = ToolTip,
+	BackgroundColor3 = Color3.new(1, 1, 1),
+	BackgroundTransparency = 1,
+	Position = UDim2.new(0, 2, 0, 2),
+	Size = UDim2.new(0, 196, 0, 46),
+	ZIndex = 3,
+	Font = Enum.Font.SourceSans,
+	Text = "This is some slightly longer text.",
+	TextColor3 = Color3.new(1, 1, 1),
+	TextSize = 14,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top,
+})
 
 -------------------------------------------------------------------------------
 
@@ -703,8 +649,8 @@ function onBarInput(input)
 		local mainPos = Background.AbsolutePosition
 		local offset = mainPos - lastPos
 		local currentPos = offset + lastPos
-		if not connections["drag"] then
-			connections["drag"] = RunService.RenderStepped:Connect(function()
+		if not connections.drag then
+			connections.drag = RunService.RenderStepped:Connect(function()
 				local newPos = UserInputService:GetMouseLocation()
 				if newPos ~= lastPos then
 					local currentX = (offset + newPos).X
@@ -754,9 +700,9 @@ function onBarInput(input)
 			connections,
 			UserInputService.InputEnded:Connect(function(inputE)
 				if input == inputE then
-					if connections["drag"] then
-						connections["drag"]:Disconnect()
-						connections["drag"] = nil
+					if connections.drag then
+						connections.drag:Disconnect()
+						connections.drag = nil
 					end
 				end
 			end)
@@ -950,25 +896,22 @@ function isInDragRange(p)
 end
 
 --- Called when mouse enters SimpleSpy
-local customCursor = Create(
-	"ImageLabel",
-	{
-		Parent = SimpleSpy3,
-		Visible = false,
-		Size = UDim2.fromOffset(200, 200),
-		ZIndex = 1e9,
-		BackgroundTransparency = 1,
-		Image = "",
-		Parent = SimpleSpy3,
-	}
-)
+local customCursor = Create("ImageLabel", {
+	Parent = SimpleSpy3,
+	Visible = false,
+	Size = UDim2.fromOffset(200, 200),
+	ZIndex = 1e9,
+	BackgroundTransparency = 1,
+	Image = "",
+	Parent = SimpleSpy3,
+})
 function mouseEntered()
-	local con = connections["SIMPLESPY_CURSOR"]
+	local con = connections.SIMPLESPY_CURSOR
 	if con then
 		con:Disconnect()
-		connections["SIMPLESPY_CURSOR"] = nil
+		connections.SIMPLESPY_CURSOR = nil
 	end
-	connections["SIMPLESPY_CURSOR"] = RunService.RenderStepped:Connect(function()
+	connections.SIMPLESPY_CURSOR = RunService.RenderStepped:Connect(function()
 		UserInputService.MouseIconEnabled = not mouseInGui
 		customCursor.Visible = mouseInGui
 		if mouseInGui and getgenv().SimpleSpyExecuted then
@@ -990,7 +933,7 @@ function mouseEntered()
 				customCursor.Image = "rbxassetid://6065775281"
 			end
 		else
-			connections["SIMPLESPY_CURSOR"]:Disconnect()
+			connections.SIMPLESPY_CURSOR:Disconnect()
 		end
 	end)
 end
@@ -1024,16 +967,12 @@ function maximizeSize(speed)
 		TweenInfo.new(speed),
 		{ Size = UDim2.fromOffset(LeftPanel.AbsoluteSize.X, Background.AbsoluteSize.Y - TopBar.AbsoluteSize.Y) }
 	):Play()
-	TweenService:Create(
-		RightPanel,
-		TweenInfo.new(speed),
-		{
-			Size = UDim2.fromOffset(
-				Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X,
-				Background.AbsoluteSize.Y - TopBar.AbsoluteSize.Y
-			),
-		}
-	):Play()
+	TweenService:Create(RightPanel, TweenInfo.new(speed), {
+		Size = UDim2.fromOffset(
+			Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X,
+			Background.AbsoluteSize.Y - TopBar.AbsoluteSize.Y
+		),
+	}):Play()
 	TweenService
 		:Create(
 			TopBar,
@@ -1041,24 +980,16 @@ function maximizeSize(speed)
 			{ Size = UDim2.fromOffset(Background.AbsoluteSize.X, TopBar.AbsoluteSize.Y) }
 		)
 		:Play()
-	TweenService:Create(
-		ScrollingFrame,
-		TweenInfo.new(speed),
-		{
-			Size = UDim2.fromOffset(Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X, 110),
-			Position = UDim2.fromOffset(0, Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y),
-		}
-	):Play()
-	TweenService:Create(
-		CodeBox,
-		TweenInfo.new(speed),
-		{
-			Size = UDim2.fromOffset(
-				Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X,
-				Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y
-			),
-		}
-	):Play()
+	TweenService:Create(ScrollingFrame, TweenInfo.new(speed), {
+		Size = UDim2.fromOffset(Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X, 110),
+		Position = UDim2.fromOffset(0, Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y),
+	}):Play()
+	TweenService:Create(CodeBox, TweenInfo.new(speed), {
+		Size = UDim2.fromOffset(
+			Background.AbsoluteSize.X - LeftPanel.AbsoluteSize.X,
+			Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y
+		),
+	}):Play()
 	TweenService:Create(
 		LogList,
 		TweenInfo.new(speed),
@@ -1088,14 +1019,10 @@ function minimizeSize(speed)
 			{ Size = UDim2.fromOffset(LeftPanel.AbsoluteSize.X, TopBar.AbsoluteSize.Y) }
 		)
 		:Play()
-	TweenService:Create(
-		ScrollingFrame,
-		TweenInfo.new(speed),
-		{
-			Size = UDim2.fromOffset(0, 119),
-			Position = UDim2.fromOffset(0, Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y),
-		}
-	):Play()
+	TweenService:Create(ScrollingFrame, TweenInfo.new(speed), {
+		Size = UDim2.fromOffset(0, 119),
+		Position = UDim2.fromOffset(0, Background.AbsoluteSize.Y - 119 - TopBar.AbsoluteSize.Y),
+	}):Play()
 	TweenService:Create(
 		CodeBox,
 		TweenInfo.new(speed),
@@ -1137,8 +1064,8 @@ function backgroundUserInput(input)
 		local lastPos = UserInputService:GetMouseLocation()
 		local offset = Background.AbsoluteSize - lastPos
 		local currentPos = lastPos + offset
-		if not connections["SIMPLESPY_RESIZE"] then
-			connections["SIMPLESPY_RESIZE"] = RunService.RenderStepped:Connect(function()
+		if not connections.SIMPLESPY_RESIZE then
+			connections.SIMPLESPY_RESIZE = RunService.RenderStepped:Connect(function()
 				local newPos = UserInputService:GetMouseLocation()
 				if newPos ~= lastPos then
 					local currentX = (newPos + offset).X
@@ -1171,9 +1098,9 @@ function backgroundUserInput(input)
 			connections,
 			UserInputService.InputEnded:Connect(function(inputE)
 				if input == inputE then
-					if connections["SIMPLESPY_RESIZE"] then
-						connections["SIMPLESPY_RESIZE"]:Disconnect()
-						connections["SIMPLESPY_RESIZE"] = nil
+					if connections.SIMPLESPY_RESIZE then
+						connections.SIMPLESPY_RESIZE:Disconnect()
+						connections.SIMPLESPY_RESIZE = nil
 					end
 				end
 			end)
@@ -1237,13 +1164,13 @@ function makeToolTip(enable, text)
 	if enable and text then
 		if ToolTip.Visible then
 			ToolTip.Visible = false
-			local tooltip = connections["ToolTip"]
+			local tooltip = connections.ToolTip
 			if tooltip then
 				tooltip:Disconnect()
 			end
 		end
 		local first = true
-		connections["ToolTip"] = RunService.RenderStepped:Connect(function()
+		connections.ToolTip = RunService.RenderStepped:Connect(function()
 			local MousePos = UserInputService:GetMouseLocation()
 			local topLeft = MousePos + Vector2.new(20, -15)
 			local bottomRight = topLeft + ToolTip.AbsoluteSize
@@ -1278,7 +1205,7 @@ function makeToolTip(enable, text)
 	else
 		if ToolTip.Visible then
 			ToolTip.Visible = false
-			local tooltip = connections["ToolTip"]
+			local tooltip = connections.ToolTip
 			if tooltip then
 				tooltip:Disconnect()
 			end
@@ -1291,63 +1218,51 @@ end
 ---@param description function
 ---@param onClick function
 function newButton(name, description, onClick)
-	local FunctionTemplate = Create(
-		"Frame",
-		{
-			Name = "FunctionTemplate",
-			Parent = ScrollingFrame,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 117, 0, 23),
-		}
-	)
-	local ColorBar = Create(
-		"Frame",
-		{
-			Name = "ColorBar",
-			Parent = FunctionTemplate,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BorderSizePixel = 0,
-			Position = UDim2.new(0, 7, 0, 10),
-			Size = UDim2.new(0, 7, 0, 18),
-			ZIndex = 3,
-		}
-	)
-	local Text = Create(
-		"TextLabel",
-		{
-			Text = name,
-			Name = "Text",
-			Parent = FunctionTemplate,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 19, 0, 10),
-			Size = UDim2.new(0, 69, 0, 18),
-			ZIndex = 2,
-			Font = Enum.Font.SourceSans,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextSize = 14,
-			TextStrokeColor3 = Color3.new(0.145098, 0.141176, 0.14902),
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}
-	)
-	local Button = Create(
-		"TextButton",
-		{
-			Name = "Button",
-			Parent = FunctionTemplate,
-			BackgroundColor3 = Color3.new(0, 0, 0),
-			BackgroundTransparency = 0.69999998807907,
-			BorderColor3 = Color3.new(1, 1, 1),
-			Position = UDim2.new(0, 7, 0, 10),
-			Size = UDim2.new(0, 80, 0, 18),
-			AutoButtonColor = false,
-			Font = Enum.Font.SourceSans,
-			Text = "",
-			TextColor3 = Color3.new(0, 0, 0),
-			TextSize = 14,
-		}
-	)
+	local FunctionTemplate = Create("Frame", {
+		Name = "FunctionTemplate",
+		Parent = ScrollingFrame,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0, 117, 0, 23),
+	})
+	local ColorBar = Create("Frame", {
+		Name = "ColorBar",
+		Parent = FunctionTemplate,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 7, 0, 10),
+		Size = UDim2.new(0, 7, 0, 18),
+		ZIndex = 3,
+	})
+	local Text = Create("TextLabel", {
+		Text = name,
+		Name = "Text",
+		Parent = FunctionTemplate,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 19, 0, 10),
+		Size = UDim2.new(0, 69, 0, 18),
+		ZIndex = 2,
+		Font = Enum.Font.SourceSans,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextSize = 14,
+		TextStrokeColor3 = Color3.new(0.145098, 0.141176, 0.14902),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local Button = Create("TextButton", {
+		Name = "Button",
+		Parent = FunctionTemplate,
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.69999998807907,
+		BorderColor3 = Color3.new(1, 1, 1),
+		Position = UDim2.new(0, 7, 0, 10),
+		Size = UDim2.new(0, 80, 0, 18),
+		AutoButtonColor = false,
+		Font = Enum.Font.SourceSans,
+		Text = "",
+		TextColor3 = Color3.new(0, 0, 0),
+		TextSize = 14,
+	})
 
 	Button.MouseEnter:Connect(function()
 		makeToolTip(true, description())
@@ -1365,78 +1280,72 @@ function newButton(name, description, onClick)
 	updateFunctionCanvas()
 end
 
+type data = {
+	remote: RemoteEvent | RemoteFunction,
+	callingscript: ModuleScript | LocalScript,
+	returnvalue: any,
+	blocked: boolean,
+	infofunc: string,
+	id: string,
+	metamethod: any,
+	args: any,
+}
+
 --- Adds new Remote to logs
---- @param name string The name of the remote being logged
 --- @param type string The type of the remote being logged (either 'function' or 'event')
---- @param args any
---- @param remote any
---- @param function_info string
---- @param blocked any
-function newRemote(type, data)
+function newRemote(type: "function" | "event", data: data)
 	if layoutOrderNum < 1 then
 		layoutOrderNum = 999999999
 	end
 	local remote = data.remote
 	local callingscript = data.callingscript
 
-	local RemoteTemplate = Create(
-		"Frame",
-		{
-			LayoutOrder = layoutOrderNum,
-			Name = "RemoteTemplate",
-			Parent = LogList,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = 1,
-			Size = UDim2.new(0, 117, 0, 27),
-		}
-	)
-	local ColorBar = Create(
-		"Frame",
-		{
-			Name = "ColorBar",
-			Parent = RemoteTemplate,
-			BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),
-			BorderSizePixel = 0,
-			Position = UDim2.new(0, 0, 0, 1),
-			Size = UDim2.new(0, 7, 0, 18),
-			ZIndex = 2,
-		}
-	)
-	local Text = Create(
-		"TextLabel",
-		{
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Name = "Text",
-			Parent = RemoteTemplate,
-			BackgroundColor3 = Color3.new(1, 1, 1),
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 12, 0, 1),
-			Size = UDim2.new(0, 105, 0, 18),
-			ZIndex = 2,
-			Font = Enum.Font.SourceSans,
-			Text = remote.Name,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextSize = 14,
-			TextXAlignment = Enum.TextXAlignment.Left,
-		}
-	)
-	local Button = Create(
-		"TextButton",
-		{
-			Name = "Button",
-			Parent = RemoteTemplate,
-			BackgroundColor3 = Color3.new(0, 0, 0),
-			BackgroundTransparency = 0.75,
-			BorderColor3 = Color3.new(1, 1, 1),
-			Position = UDim2.new(0, 0, 0, 1),
-			Size = UDim2.new(0, 117, 0, 18),
-			AutoButtonColor = false,
-			Font = Enum.Font.SourceSans,
-			Text = "",
-			TextColor3 = Color3.new(0, 0, 0),
-			TextSize = 14,
-		}
-	)
+	local RemoteTemplate = Create("Frame", {
+		LayoutOrder = layoutOrderNum,
+		Name = "RemoteTemplate",
+		Parent = LogList,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0, 117, 0, 27),
+	})
+	local ColorBar = Create("Frame", {
+		Name = "ColorBar",
+		Parent = RemoteTemplate,
+		BackgroundColor3 = (type == "event" and Color3.fromRGB(255, 242, 0)) or Color3.fromRGB(99, 86, 245),
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 0, 1),
+		Size = UDim2.new(0, 7, 0, 18),
+		ZIndex = 2,
+	})
+	local Text = Create("TextLabel", {
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Name = "Text",
+		Parent = RemoteTemplate,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 1,
+		Position = UDim2.new(0, 12, 0, 1),
+		Size = UDim2.new(0, 105, 0, 18),
+		ZIndex = 2,
+		Font = Enum.Font.SourceSans,
+		Text = remote.Name,
+		TextColor3 = Color3.new(1, 1, 1),
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local Button = Create("TextButton", {
+		Name = "Button",
+		Parent = RemoteTemplate,
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.75,
+		BorderColor3 = Color3.new(1, 1, 1),
+		Position = UDim2.new(0, 0, 0, 1),
+		Size = UDim2.new(0, 117, 0, 18),
+		AutoButtonColor = false,
+		Font = Enum.Font.SourceSans,
+		Text = "",
+		TextColor3 = Color3.new(0, 0, 0),
+		TextSize = 14,
+	})
 
 	local log = {
 		Name = remote.name,
@@ -1482,7 +1391,7 @@ function genScript(remote, args)
 			gen ..= "-- An error has occured:\n--" .. err .. "\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
 			xpcall(function()
 				for i, v in next, args do
-					if type(i) ~= "Instance" and type(i) ~= "userdata" then
+					if typeof(i) ~= "Instance" and type(i) ~= "userdata" then
 						gen = gen .. "\n    [object] = "
 					elseif type(i) == "string" then
 						gen = gen .. '\n    ["' .. i .. '"] = '
@@ -1491,7 +1400,7 @@ function genScript(remote, args)
 					elseif type(i) == "userdata" then
 						gen = gen .. "\n    [game." .. i:GetFullName() .. ")] = "
 					end
-					if type(v) ~= "Instance" and type(v) ~= "userdata" then
+					if typeof(v) ~= "Instance" and type(v) ~= "userdata" then
 						gen = gen .. "object"
 					elseif type(v) == "string" then
 						gen = gen .. '"' .. v .. '"'
@@ -1552,35 +1461,35 @@ local CustomGeneration = {
 }
 
 local number_table = {
-	["inf"] = "math.huge",
+	inf = "math.huge",
 	["-inf"] = "-math.huge",
-	["nan"] = "0/0",
+	nan = "0/0 --[[NaN (Not a Number)]]",
 }
 
 local ufunctions
 ufunctions = {
-	TweenInfo = function(u)
+	TweenInfo = function(u: TweenInfo)
 		return `TweenInfo.new({u.Time}, {u.EasingStyle}, {u.EasingDirection}, {u.RepeatCount}, {u.Reverses}, {u.DelayTime})`
 	end,
-	Ray = function(u)
-		local Vector3tostring = ufunctions["Vector3"]
+	Ray = function(u: Ray)
+		local Vector3tostring = ufunctions.Vector3
 
 		return `Ray.new({Vector3tostring(u.Origin)}, {Vector3tostring(u.Direction)})`
 	end,
-	BrickColor = function(u)
+	BrickColor = function(u: BrickColor)
 		return `BrickColor.new({u.Number})`
 	end,
-	NumberRange = function(u)
+	NumberRange = function(u: NumberRange)
 		return `NumberRange.new({u.Min}, {u.Max})`
 	end,
-	Region3 = function(u)
+	Region3 = function(u: Region3)
 		local center = u.CFrame.Position
 		local centersize = u.Size / 2
-		local Vector3tostring = ufunctions["Vector3"]
+		local Vector3tostring = ufunctions.Vector3
 
 		return `Region3.new({Vector3tostring(center - centersize)}, {Vector3tostring(center + centersize)})`
 	end,
-	Faces = function(u)
+	Faces = function(u: Faces)
 		local faces = {}
 		if u.Top then
 			table.insert(faces, "Top")
@@ -1602,45 +1511,45 @@ ufunctions = {
 		end
 		return `Faces.new({table.concat(faces, ", ")})`
 	end,
-	EnumItem = function(u)
+	EnumItem = function(u: EnumItem)
 		return tostring(u)
 	end,
-	Enums = function(u)
+	Enums = function(u: Enums)
 		return "Enum"
 	end,
-	Enum = function(u)
+	Enum = function(u: Enum)
 		return `Enum.{u}`
 	end,
-	Vector3 = function(u)
+	Vector3 = function(u: Vector3)
 		return CustomGeneration.Vector3[u] or `Vector3.new({u})`
 	end,
-	Vector2 = function(u)
+	Vector2 = function(u: Vector2)
 		return CustomGeneration.Vector2[u] or `Vector2.new({u})`
 	end,
-	CFrame = function(u)
+	CFrame = function(u: CFrame)
 		return CustomGeneration.CFrame[u] or `CFrame.new({table.concat({ u:GetComponents() }, ", ")})`
 	end,
-	PathWaypoint = function(u)
-		return `PathWaypoint.new({ufunctions["Vector3"](u.Position)}, {u.Action}, "{u.Label}")`
+	PathWaypoint = function(u: PathWaypoint)
+		return `PathWaypoint.new({ufunctions.Vector3(u.Position)}, {u.Action}, "{u.Label}")`
 	end,
-	UDim = function(u)
+	UDim = function(u: UDim)
 		return `UDim.new({u})`
 	end,
-	UDim2 = function(u)
+	UDim2 = function(u: UDim2)
 		return `UDim2.new({u})`
 	end,
-	Rect = function(u)
-		local Vector2tostring = ufunctions["Vector2"]
+	Rect = function(u: Rect)
+		local Vector2tostring = ufunctions.Vector2
 		return `Rect.new({Vector2tostring(u.Min)}, {Vector2tostring(u.Max)})`
 	end,
-	Color3 = function(u)
+	Color3 = function(u: Color3)
 		return `Color3.new({u.R}, {u.G}, {u.B})`
 	end,
-	RBXScriptSignal = function(u) -- The server doesnt recive this
-		return "RBXScriptSignal --[[RBXScriptSignal's are not supported]]"
+	RBXScriptSignal = function(u) -- The server doesn't recive this
+		return "RBXScriptSignal --[[RBXScriptSignals are not supported]]"
 	end,
-	RBXScriptConnection = function(u) -- The server doesnt recive this
-		return "RBXScriptConnection --[[RBXScriptConnection's are not supported]]"
+	RBXScriptConnection = function(u) -- The server doesn't recive this
+		return "RBXScriptConnection --[[RBXScriptConnections are not supported]]"
 	end,
 }
 
@@ -1683,7 +1592,7 @@ local typev2sfunctions = {
 		end
 		return `{vtypeof}({rawtostring(v)}) --[[Generation Failure]]`
 	end,
-	vector = ufunctions["Vector3"],
+	vector = ufunctions.Vector3,
 }
 
 function v2s(v, l, p, n, vtv, i, pt, path, tables, tI)
@@ -2484,16 +2393,19 @@ if not getgenv().SimpleSpyExecuted then
 			or (syn and syn.protect_gui and syn.protect_gui(SimpleSpy3))
 			or CoreGui
 		logthread(spawn(function()
-			local lp = Players.LocalPlayer
-				or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-				or Players.LocalPlayer
+			local lp = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+			connections.CharacterAdded = lp.CharacterAdded:Connect(function(new)
+				generation[OldDebugId(new)] = 'game:GetService("Players").LocalPlayer.Character'
+			end)
 			generation = {
 				[OldDebugId(lp)] = 'game:GetService("Players").LocalPlayer',
 				[OldDebugId(lp:GetMouse())] = 'game:GetService("Players").LocalPlayer:GetMouse',
 				[OldDebugId(game)] = "game",
-				[OldDebugId(lp.Character)] = 'game:GetService("Players").LocalPlayer.Character',
 				[OldDebugId(workspace)] = "workspace",
 			}
+			if lp.Character then
+				generation[oldDebugId(lp.Character)] = 'game:GetService("Players").LocalPlayer.Character'
+			end
 		end))
 	end)
 	if succeeded then
@@ -2603,9 +2515,7 @@ end, function()
 			local lclosure = islclosure(func)
 			local SourceScript = rawget(getfenv(func), "script")
 			local CallingScript = selected.Source or nil
-			local info = {}
-
-			info = {
+			local info = {
 				info = getinfo(func),
 				constants = lclosure and deepclone(getconstants(func)) or "N/A --Lua Closure expected got C Closure",
 				upvalues = deepclone(getupvalues(func)),
@@ -2618,7 +2528,7 @@ end, function()
 			if configs.advancedinfo then
 				local Remote = selected.Remote
 
-				info["advancedinfo"] = {
+				info.advancedinfo = {
 					Metamethod = selected.metamethod,
 					DebugId = {
 						SourceScriptDebugId = SourceScript and typeof(SourceScript) == "Instance" and OldDebugId(
@@ -2633,14 +2543,14 @@ end, function()
 				}
 
 				if Remote:IsA("RemoteFunction") then
-					info["advancedinfo"]["OnClientInvoke"] = getcallbackmember
+					info.advancedinfo.OnClientInvoke = getcallbackmember
 							and (getcallbackmember(Remote, "OnClientInvoke") or "N/A")
 						or "N/A --Missing function getcallbackmember"
 				elseif getconnections then
-					info["advancedinfo"]["OnClientEvents"] = {}
+					info.advancedinfo.OnClientEvents = {}
 
 					for i, v in next, getconnections(Remote.OnClientEvent) do
-						info["advancedinfo"]["OnClientEvents"][i] = {
+						info.advancedinfo.OnClientEvents[i] = {
 							Function = v.Function or "N/A",
 							State = v.State or "N/A",
 						}
@@ -2856,7 +2766,7 @@ if configs.supersecretdevtoggle then
 		)()
 	end)
 	newButton("Load SSV3", function()
-		return "Load's Simple Spy V3"
+		return "Loads Simple Spy V3"
 	end, function()
 		loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpySource.lua"))()
 	end)
@@ -2866,15 +2776,12 @@ if configs.supersecretdevtoggle then
 	end, function()
 		SuperSecretFolder:ClearAllChildren()
 		local random = listfiles("Music")
-		local NotSound = Create(
-			"Sound",
-			{
-				Parent = SuperSecretFolder,
-				Looped = false,
-				Volume = math.random(1, 5),
-				SoundId = getsynasset(random[math.random(1, #random)]),
-			}
-		)
+		local NotSound = Create("Sound", {
+			Parent = SuperSecretFolder,
+			Looped = false,
+			Volume = math.random(1, 5),
+			SoundId = getsynasset(random[math.random(1, #random)]),
+		})
 		NotSound:Play()
 	end)
 end
