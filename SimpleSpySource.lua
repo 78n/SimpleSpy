@@ -1275,6 +1275,7 @@ function tabletostring(tbl: table,format: boolean)
     
 end
 
+
 --- table-to-string
 --- @param t table
 --- @param l number
@@ -1307,7 +1308,7 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
     for _, v in next, tables do -- checks if the current table has been serialized before
         if n and rawequal(v, t) then
             bottomstr = bottomstr .. "\n" .. rawtostring(n) .. rawtostring(path) .. " = " .. rawtostring(n) .. rawtostring(({v2p(v, p)})[2])
-            return "{} --[[DUPLICATE]]"
+            return `\{}\ --[[Duplicate Found: "{rawtostring(n)}"]]`
         end
     end
     table.insert(tables, t) -- logs table to past tables
@@ -1322,7 +1323,6 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
         end
         if rawequal(k, t) then -- checks if the table being iterated over is being used as an index within itself (yay, lua)
             bottomstr ..= `\n{n}{path}[{n}{path}] = {(rawequal(v,k) and `{n}{path}` or v2s(v, l, p, n, vtv, k, t, `{path}[{n}{path}]`, tables))}`
-            --bottomstr = bottomstr .. "\n" .. rawtostring(n) .. rawtostring(path) .. "[" .. rawtostring(n) .. rawtostring(path) .. "]" .. " = " .. (rawequal(v, k) and rawtostring(n) .. rawtostring(path) or v2s(v, l, p, n, vtv, k, t, path .. "[" .. rawtostring(n) .. rawtostring(path) .. "]", tables))
             size -= 1
             continue
         end
@@ -1336,7 +1336,13 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
             scheduleWait()
         end
         -- actually serializes the member of the table
-        s = s .. "\n" .. string.rep(" ", l) .. "[" .. v2s(k, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. "] = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+	if type(k) == "string" and k:match("^[_%a][_%w]*$") then
+		s = s .. "\n" .. string.rep(" ", l) .. k .. " = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+		elseif type(k) == "number" then
+		s = s .. "\n" .. string.rep(" ", l) .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+		else
+		s = s .. "\n" .. string.rep(" ", l) .. "[" .. v2s(k, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. "] = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+	end
     end
     if #s > 1 then -- removes the last comma because it looks nicer (no way to tell if it's done 'till it's done so...)
         s = s:sub(1, #s - 1)
@@ -1345,34 +1351,6 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
         s = s .. "\n" .. string.rep(" ", l - indent)
     end
     return s .. "}"
-end
-
---- function-to-string
-function f2s(f)
-    for k, x in next, getgenv() do
-        local isgucci, gpath
-        if rawequal(x, f) then
-            isgucci, gpath = true, ""
-        elseif type(x) == "table" then
-            isgucci, gpath = v2p(f, x)
-        end
-        if isgucci and type(k) ~= "function" then
-            if type(k) == "string" and k:match("^[%a_]+[%w_]*$") then
-                return k .. gpath
-            else
-                return "getgenv()[" .. v2s(k) .. "]" .. gpath
-            end
-        end
-    end
-    
-    if configs.funcEnabled then
-        local funcname = info(f,"n")
-        
-        if funcname and funcname:match("^[%a_]+[%w_]*$") then
-            return `function {funcname}() end -- Function Called: {funcname}`
-        end
-    end
-    return tostring(f)
 end
 
 --- instance-to-path
