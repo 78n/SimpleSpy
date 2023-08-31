@@ -1353,6 +1353,34 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
     return s .. "}"
 end
 
+--- function-to-string
+function f2s(f)
+    for k, x in next, getgenv() do
+        local isgucci, gpath
+        if rawequal(x, f) then
+            isgucci, gpath = true, ""
+        elseif type(x) == "table" then
+            isgucci, gpath = v2p(f, x)
+        end
+        if isgucci and type(k) ~= "function" then
+            if type(k) == "string" and k:match("^[%a_]+[%w_]*$") then
+                return k .. gpath
+            else
+                return "getgenv()[" .. v2s(k) .. "]" .. gpath
+            end
+        end
+    end
+    
+    if configs.funcEnabled then
+        local funcname = info(f,"n")
+        
+        if funcname and funcname:match("^[%a_]+[%w_]*$") then
+            return `function {funcname}() end -- Function Called: {funcname}`
+        end
+    end
+    return tostring(f)
+end
+
 --- instance-to-path
 --- @param i userdata
 function i2p(i,customgen)
