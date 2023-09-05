@@ -2404,7 +2404,7 @@ if not getgenv().SimpleSpyExecuted then
 				[OldDebugId(workspace)] = "workspace",
 			}
 			if lp.Character then
-				generation[oldDebugId(lp.Character)] = 'game:GetService("Players").LocalPlayer.Character'
+				generation[OldDebugId(lp.Character)] = 'game:GetService("Players").LocalPlayer.Character'
 			end
 		end))
 	end)
