@@ -1,8 +1,5 @@
 Current Update being developed on:
-I am rewriting the ENTIRE string generation system.
-This encludes TableToString, InstanceToString ect.
-After this update Generation speeds will be much faster
-more updates on this soon:tm:
+I am almost done rewriting the system I am currently trying to squash a few rare bugs
 
 Update:
 Fixed an issue breaking simple spy
