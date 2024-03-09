@@ -2352,7 +2352,7 @@ if not getgenv().SimpleSpyExecuted then
 		codebox = Highlight.new(CodeBox)
 		logthread(spawn(function()
 			local suc, err =
-				pcall(game.HttpGet, game, "https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.lua")
+				pcall(game.HttpGet, game, "https://raw.githubusercontent.com/78n/SimpleSpy/main/UpdateLog.txt")
 			codebox:setRaw((suc and err) or "")
 		end))
 		getgenv().SimpleSpy = SimpleSpy
