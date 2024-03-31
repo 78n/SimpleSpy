@@ -8,8 +8,7 @@ local realconfigs = {
     funcEnabled = true,
     advancedinfo = false,
     --logreturnvalues = false,
-    supersecretdevtoggle = false,
-    debugidgeneration = false
+    supersecretdevtoggle = false
 }
 
 local configs = newproxy(true)
@@ -19,7 +18,7 @@ configsmetatable.__index = function(self,index)
     return realconfigs[index]
 end
 
-local oth = syn and syn.oth
+local oth = oth or syn and syn.oth
 local unhook = oth and oth.unhook
 local hook = oth and oth.hook
 
@@ -33,6 +32,7 @@ local yield = coroutine.yield
 local create = coroutine.create
 local close = coroutine.close
 local OldDebugId = game.GetDebugId
+local info = debug.info
 
 local IsA = game.IsA
 local tostring = tostring
@@ -46,7 +46,8 @@ local function blankfunction(...)
     return ...
 end
 
-local newcclosure = newcclosure or blankfunction
+local get_thread_identity = (syn and syn.get_thread_identity) or getidentity or getthreadidentity
+local set_thread_identity = (syn and syn.set_thread_identity) or setidentity
 local islclosure = islclosure or is_l_closure
 
 local getinfo = getinfo or blankfunction
@@ -55,20 +56,17 @@ local getconstants = getconstants or debug.getconstants or blankfunction
 
 local getcustomasset = getsynasset or getcustomasset
 local getcallingscript = getcallingscript or blankfunction
+local newcclosure = newcclosure or blankfunction
 local clonefunction = clonefunction or blankfunction
 local cloneref = cloneref or blankfunction
 local request = request or syn and syn.request
-
-local info = debug.info
-local isvalidlevel = isvalidlevel or validlevel or debug.isvalidlevel or debug.validlevel
-local isreadonly = isreadonly or table.isfrozen
-
 local makewritable = makewriteable or function(tbl)
     setreadonly(tbl,false)
 end
 local makereadonly = makereadonly or function(tbl)
     setreadonly(tbl,true)
 end
+local isreadonly = isreadonly or table.isfrozen
 
 local setclipboard = setclipboard or toclipboard or set_clipboard or (Clipboard and Clipboard.set) or function(...)
     return ErrorPrompt("Attempted to set clipboard: "..(...),true)
@@ -217,7 +215,7 @@ function ErrorPrompt(Message,state)
     end
 end
 
-local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua",true))()
+local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
 
 local SimpleSpy3 = Create("ScreenGui",{ResetOnSpawn = false})
 local Storage = Create("Folder",{})
@@ -288,7 +286,6 @@ local rightFadeIn
 local codebox
 local p
 local getnilrequired = false
-local getinstancerequired = false
 
 -- autoblock variables
 local history = {}
@@ -304,12 +301,14 @@ local running_threads = {}
 local originalnamecall
 
 local remoteEvent = Instance.new("RemoteEvent",Storage)
+local UnreliableEvent = Instance.new("UnreliableRemoteEvent", Storage)
 local remoteFunction = Instance.new("RemoteFunction",Storage)
 local NamecallHandler = Instance.new("BindableEvent",Storage)
 local IndexHandler = Instance.new("BindableEvent",Storage)
 local GetDebugIdHandler = Instance.new("BindableFunction",Storage) --Thanks engo for the idea of using BindableFunctions
 
 local originalEvent = remoteEvent.FireServer
+local originalUnreliableEvent = UnreliableRemoteEvent.FireServer
 local originalFunction = remoteFunction.InvokeServer
 local GetDebugIDInvoke = GetDebugIdHandler.Invoke
 
@@ -319,15 +318,6 @@ end
 
 local function ThreadGetDebugId(obj: Instance): string 
     return GetDebugIDInvoke(GetDebugIdHandler,obj) -- indexing to avoid having to setnamecall later
-end
-
-local synv3 = false
-
-if syn and identifyexecutor then
-    local _, version = identifyexecutor()
-    if (version and version:sub(1, 2) == 'v3') then
-        synv3 = true
-    end
 end
 
 xpcall(function()
@@ -447,7 +437,7 @@ function connectResize()
     local lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
     workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
         lastCam:Disconnect()
-        if typeof(lastCam) == 'RBXScriptConnection' then
+        if typeof(lastCam) == 'Connection' then
             lastCam:Disconnect()
         end
         lastCam = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(bringBackOnResize)
@@ -957,7 +947,6 @@ function newButton(name, description, onClick)
         onClick(FunctionTemplate, ...)
     end)
     updateFunctionCanvas()
-    return FunctionTemplate
 end
 
 --- Adds new Remote to logs
@@ -1048,13 +1037,13 @@ function genScript(remote, args)
         if not remote:IsDescendantOf(game) and not getnilrequired then
             gen = "function getNil(name,class) for _,v in next, getnilinstances()do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
         end
-        if remote:IsA("RemoteEvent") then
+        if remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent") then
             gen ..= v2s(remote) .. ":FireServer(unpack(args))"
         elseif remote:IsA("RemoteFunction") then
             gen = gen .. v2s(remote) .. ":InvokeServer(unpack(args))"
         end
     else
-        if remote:IsA("RemoteEvent") then
+        if remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent") then
             gen ..= v2s(remote) .. ":FireServer()"
         elseif remote:IsA("RemoteFunction") then
             gen ..= v2s(remote) .. ":InvokeServer()"
@@ -1200,14 +1189,8 @@ local typeofv2sfunctions = {
         return t2s(v, l, p, n, vtv, i, pt, path, tables, tI)
     end,
     Instance = function(v)
-        getinstancerequired = configs.debugidgeneration        
         local DebugId = OldDebugId(v)
-        local generation = generation[DebugId] or i2p(v)
-
-        if configs.debugidgeneration then
-            return `getinstance("{DebugId}",\{["Path:"] = {generation}}\)`
-        end
-        return generation
+        return i2p(v,generation[DebugId])
     end,
     userdata = function(v) -- The server doesnt recive this
         if configs.advancedinfo then
@@ -1256,7 +1239,6 @@ function v2v(t)
     topstr = ""
     bottomstr = ""
     getnilrequired = false
-    getinstancerequired = false
     local ret = ""
     local count = 1
     for i, v in next, t do
@@ -1265,15 +1247,12 @@ function v2v(t)
         elseif rawtostring(i):match("^[%a_]+[%w_]*$") then
             ret = ret .. "local " .. lower(rawtostring(i)) .. "_" .. rawtostring(count) .. " = " .. v2s(v, nil, nil, lower(rawtostring(i)) .. "_" .. rawtostring(count), true) .. "\n"
         else
-            ret ..= `local {type(v)}_{count} = {v2s(v, nil, nil, `{type(v)}_{rawtostring(count)}`, true)}`
+            ret = ret .. "local " .. type(v) .. "_" .. rawtostring(count) .. " = " .. v2s(v, nil, nil, type(v) .. "_" .. rawtostring(count), true) .. "\n"
         end
         count = count + 1
     end
     if getnilrequired then
         topstr = "function getNil(name,class) for _,v in next, getnilinstances() do if v.ClassName==class and v.Name==name then return v;end end end\n" .. topstr
-    end
-    if getinstancerequired then
-        topstr = "local function getinstance(DebugId) for i,v in next, getinstances() do if v:GetDebugId() == DebugId then return v end end end\n".. topstr
     end
     if #topstr > 0 then
         ret = topstr .. "\n" .. ret
@@ -1320,7 +1299,7 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
     for _, v in next, tables do -- checks if the current table has been serialized before
         if n and rawequal(v, t) then
             bottomstr = bottomstr .. "\n" .. rawtostring(n) .. rawtostring(path) .. " = " .. rawtostring(n) .. rawtostring(({v2p(v, p)})[2])
-            return `\{}\ --[[Duplicate Found: "{rawtostring(n)}"]]`
+            return "{} --[[DUPLICATE]]"
         end
     end
     table.insert(tables, t) -- logs table to past tables
@@ -1382,7 +1361,7 @@ function f2s(f)
         local funcname = info(f,"n")
         
         if funcname and funcname:match("^[%a_]+[%w_]*$") then
-            return `function {funcname}() end --[[Function Called: {funcname}]]`
+            return `function {funcname}() end -- Function Called: {funcname}`
         end
     end
     return tostring(f)
@@ -1391,6 +1370,9 @@ end
 --- instance-to-path
 --- @param i userdata
 function i2p(i,customgen)
+    if customgen then
+        return customgen
+    end
     local player = getplayer(i)
     local parent = i
     local out = ""
@@ -1538,17 +1520,6 @@ local specialstrings = {
     end
 }
 
-local bytelist = {}
-
-local function addbytes(min,max)
-    for i = min,max do
-        bytelist[i] = `\\{i}`
-    end
-end
-
-addbytes(0,31)
-addbytes(127,255)
-
 function handlespecials(s, indentation)
     local i = 0
     local n = 1
@@ -1564,22 +1535,20 @@ function handlespecials(s, indentation)
             timeout = 0
         end
         local char = s:sub(i, i)
-        local charbyte = byte(char)
-    
-        if charbyte then
+
+        if byte(char) then
             timeout += 1
             local c = create(coroutineFunc)
             table.insert(coroutines, c)
             local specialfunc = specialstrings[char]
-            local SpecialChar = not specialfunc and bytelist[charbyte]
 
             if specialfunc then
                 specialfunc(c,i)
                 i += 1
-            elseif SpecialChar then
-                resume(c, i, SpecialChar)
+            elseif byte(char) > 126 or byte(char) < 32 then
+                resume(c, i, "\\" .. byte(char))
                 -- s = s:sub(0, i - 1) .. "\\" .. byte(char) .. s:sub(i + 1, -1)
-                i += #tostring(charbyte)
+                i += #rawtostring(byte(char))
             end
             if i >= n * 100 then
                 local extra = string.format('" ..\n%s"', string.rep(" ", indentation + indent))
@@ -1712,24 +1681,18 @@ function remoteHandler(data)
         history[id].lastCall = tick()
     end
 
-    if data.remote:IsA("RemoteEvent") and lower(data.method) == "fireserver" then
+    if (data.remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent")) and lower(data.method) == "fireserver" then
         newRemote("event", data)
     elseif data.remote:IsA("RemoteFunction") and lower(data.method) == "invokeserver" then
         newRemote("function", data)
     end
 end
 
-local function getlclosurefromstack() --rewrite for Synapse V3 with debug.getcallstack
-    local currentstack = 2
-    repeat currentstack += 1 until isvalidlevel(currentstack) and islclosure(info(currentstack,"f"))
-    return currentstack - 1
-end
-
 local newindex = function(method,originalfunction,...)
     if typeof(...) == 'Instance' then
         local remote = cloneref(...)
 
-        if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+        if remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent") or remote:IsA("RemoteFunction") then
             if not configs.logcheckcaller and checkcaller() then return originalfunction(...) end
             local id = ThreadGetDebugId(remote)
             local blockcheck = tablecheck(blocklist,remote,id)
@@ -1750,7 +1713,7 @@ local newindex = function(method,originalfunction,...)
                 args = nil
 
                 if configs.funcEnabled then
-                    data.infofunc = info(getlclosurefromstack(),"f")
+                    data.infofunc = info(2,"f")
                     local calling = getcallingscript()
                     data.callingscript = calling and cloneref(calling) or nil
                 end
@@ -1789,7 +1752,7 @@ local newnamecall = newcclosure(function(...)
         if typeof(...) == 'Instance' then
             local remote = cloneref(...)
 
-            if IsA(remote,"RemoteEvent") or IsA(remote,"RemoteFunction") then    
+            if IsA(remote,"RemoteEvent") or IsA(remote,"UnreliableRemoteEvent") or IsA(remote,"RemoteFunction") then    
                 if not configs.logcheckcaller and checkcaller() then return originalnamecall(...) end
                 local id = ThreadGetDebugId(remote)
                 local blockcheck = tablecheck(blocklist,remote,id)
@@ -1810,7 +1773,7 @@ local newnamecall = newcclosure(function(...)
                     args = nil
 
                     if configs.funcEnabled then
-                        data.infofunc = info(getlclosurefromstack(),"f")
+                        data.infofunc = info(2,"f")
                         local calling = getcallingscript()
                         data.callingscript = calling and cloneref(calling) or nil
                     end
@@ -1852,40 +1815,42 @@ local newInvokeServer = newcclosure(function(...)
 end)
 
 local function disablehooks()
-    if synv3 then
+    if oth then
         unhook(getrawmetatable(game).__namecall,originalnamecall)
         unhook(Instance.new("RemoteEvent").FireServer, originalEvent)
         unhook(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+        unhook(Instance.new("UnreliableRemoteEvent").FireServer, originalUnreliableEvent)
         restorefunction(originalnamecall)
         restorefunction(originalEvent)
+        restorefunction(originalUnreliableEvent)
         restorefunction(originalFunction)
     else
         if hookmetamethod then
-            hookmetamethod(game,"__namecall",originalnamecall)
-        else
-            hookfunction(getrawmetatable(game).__namecall,originalnamecall)
+            hookmetamethod(game, "__namecall", originalnamecall)
         end
-        hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
-        hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+        if hookfunction then
+            hookfunction(Instance.new("RemoteEvent").FireServer, originalEvent)
+            hookfunction(Instance.new("RemoteFunction").InvokeServer, originalFunction)
+            hookfunction(Instance.new("UnreliableRemoteEvent").FireServer, originalUnreliableEvent)
+        end
     end
 end
 
 --- Toggles on and off the remote spy
 function toggleSpy()
     if not toggle then
-        local oldnamecall
-        if synv3 then
-            oldnamecall = hook(getrawmetatable(game).__namecall,clonefunction(newnamecall))
+        local oldnamecall = oth and hook(getrawmetatable(game).__namecall,clonefunction(newnamecall)) or hookmetamethod and hookmetamethod(game, "__namecall", clonefunction(newnamecall))
+
+        if oth then
             originalEvent = hook(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
             originalFunction = hook(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
+            originalUnreliableEvent = hook(Instance.new("UnreliableRemoteEvent").FireServer, clonefunction(newFireServer))
         else
-            if hookmetamethod then
-                oldnamecall = hookmetamethod(game, "__namecall", clonefunction(newnamecall))
-            else
-                oldnamecall = hookfunction(getrawmetatable(game).__namecall,clonefunction(newnamecall))
+            if hookfunction then
+                originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
+                originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
+                originalUnreliableEvent = hookfunction(Instance.new("UnreliableRemoteEvent").FireServer, clonefunction(newFireServer))
             end
-            originalEvent = hookfunction(Instance.new("RemoteEvent").FireServer, clonefunction(newFireServer))
-            originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
         end
         originalnamecall = originalnamecall or function(...)
             return oldnamecall(...)
@@ -1949,13 +1914,6 @@ if not getgenv().SimpleSpyExecuted then
 				end
 			end
 		end
-        getgenv().getinstance = function(DebugId)
-            for i,v in getinstances() do
-                if v:GetDebugId() == DebugId then
-                    return v 
-                end
-            end 
-        end
         Background.MouseEnter:Connect(function(...)
             mouseInGui = true
             mouseEntered()
@@ -2062,7 +2020,7 @@ newButton("Run Code",
             TextLabel.Text = "Executing..."
             xpcall(function()
                 local returnvalue
-                if Remote:IsA("RemoteEvent") then
+                if Remote:IsA("RemoteEvent") or Remote:IsA("UnreliableRemoteEvent") then
                     returnvalue = Remote:FireServer(unpack(selected.args))
                 else
                     returnvalue = Remote:InvokeServer(unpack(selected.args))
@@ -2079,7 +2037,8 @@ newButton("Run Code",
 )
 
 --- Gets the calling script (not super reliable but w/e)
-newButton("Get Script",
+newButton(
+    "Get Script",
     function() return "Click to copy calling script to clipboard\nWARNING: Not super reliable, nil == could not find" end,
     function()
         if selected then
@@ -2312,15 +2271,6 @@ end,
 function()
     configs.logcheckcaller = not configs.logcheckcaller
     TextLabel.Text = ("[%s] Log remotes fired by the client"):format(configs.logcheckcaller and "ENABLED" or "DISABLED")
-end)
-
---DebugId generation
-newButton("DebugId gen",function()
-    return ("[%s] Changes Instance generation to include a DebugId"):format(configs.debugidgeneration and "ENABLED" or "DISABLED")
-end,
-function()
-    configs.debugidgeneration = not configs.debugidgeneration
-    TextLabel.Text = ("[%s] Changes Instance generation to include a DebugId"):format(configs.debugidgeneration and "ENABLED" or "DISABLED")
 end)
 
 --[[newButton("Log returnvalues",function()
