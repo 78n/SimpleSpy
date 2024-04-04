@@ -301,7 +301,7 @@ local running_threads = {}
 local originalnamecall
 
 local remoteEvent = Instance.new("RemoteEvent",Storage)
-local UnreliableEvent = Instance.new("UnreliableRemoteEvent", Storage)
+local UnreliableRemoteEvent = Instance.new("UnreliableRemoteEvent", Storage)
 local remoteFunction = Instance.new("RemoteFunction",Storage)
 local NamecallHandler = Instance.new("BindableEvent",Storage)
 local IndexHandler = Instance.new("BindableEvent",Storage)
