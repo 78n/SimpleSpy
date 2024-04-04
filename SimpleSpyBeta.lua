@@ -1681,7 +1681,7 @@ function remoteHandler(data)
         history[id].lastCall = tick()
     end
 
-    if (data.remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent")) and lower(data.method) == "fireserver" then
+    if (data.remote:IsA("RemoteEvent") or data.remote:IsA("UnreliableRemoteEvent")) and lower(data.method) == "fireserver" then
         newRemote("event", data)
     elseif data.remote:IsA("RemoteFunction") and lower(data.method) == "invokeserver" then
         newRemote("function", data)
