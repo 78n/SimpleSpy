@@ -1336,7 +1336,13 @@ function t2s(t, l, p, n, vtv, i, pt, path, tables, tI)
             scheduleWait()
         end
         -- actually serializes the member of the table
-        s = s .. "\n" .. string.rep(" ", l) .. "[" .. v2s(k, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. "] = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+        if type(k) == "string" and k:match("^[_%a][_%w]*$") then
+		    s = s .. "\n" .. string.rep(" ", l) .. k .. " = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+	    elseif type(k) == "number" then
+		    s = s .. "\n" .. string.rep(" ", l) .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+	    else
+		    s = s .. "\n" .. string.rep(" ", l) .. "[" .. v2s(k, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. "] = " .. v2s(v, l, p, n, vtv, k, t, path .. currentPath, tables, tI) .. ","
+	    end
     end
     if #s > 1 then -- removes the last comma because it looks nicer (no way to tell if it's done 'till it's done so...)
         s = s:sub(1, #s - 1)
