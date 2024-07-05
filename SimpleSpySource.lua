@@ -181,6 +181,7 @@ local TweenService = SafeGetService("TweenService")
 local ContentProvider = SafeGetService("ContentProvider")
 local TextService = SafeGetService("TextService")
 local http = SafeGetService("HttpService")
+local GuiInset = game:GetService("GuiService"):GetGuiInset() :: Vector2 -- pulled from rewrite
 
 local function jsone(str) return http:JSONEncode(str) end
 local function jsond(str)
@@ -470,11 +471,11 @@ function bringBackOnResize()
             currentX = viewportSize.X - (sideClosed and 131 or Background.AbsoluteSize.X)
         end
     end
-    if (currentY < 0) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36)) then
+    if (currentY < 0) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - GuiInset.Y)) then
         if currentY < 0 then
             currentY = 0
         else
-            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
+            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - GuiInset.Y
         end
     end
     TweenService.Create(TweenService, Background, TweenInfo.new(0.1), {Position = UDim2.new(0, currentX, 0, currentY)}):Play()
@@ -502,11 +503,11 @@ function onBarInput(input)
                             currentX = viewportSize.X - (sideClosed and 131 or TopBar.AbsoluteSize.X)
                         end
                     end
-                    if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36) and currentY > currentPos.Y) then
+                    if (currentY < 0 and currentY < currentPos.Y) or (currentY > (viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - GuiInset.Y) and currentY > currentPos.Y) then
                         if currentY < 0 then
                             currentY = 0
                         else
-                            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - 36
+                            currentY = viewportSize.Y - (closed and 19 or Background.AbsoluteSize.Y) - GuiInset.Y
                         end
                     end
                     currentPos = Vector2.new(currentX, currentY)
@@ -654,7 +655,7 @@ function toggleMaximize()
         TweenService:Create(CodeBox, TweenInfo.new(0.5), {Size = UDim2.new(0.5, 0, 0.5, 0), Position = UDim2.new(0.25, 0, 0.25, 0)}):Play()
         TweenService:Create(disable, TweenInfo.new(0.5), {BackgroundTransparency = 0.5}):Play()
         disable.MouseButton1Click:Connect(function()
-            if UserInputService:GetMouseLocation().Y + 36 >= CodeBox.AbsolutePosition.Y and UserInputService:GetMouseLocation().Y + 36 <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y and UserInputService:GetMouseLocation().X >= CodeBox.AbsolutePosition.X and UserInputService:GetMouseLocation().X <= CodeBox.AbsolutePosition.X + CodeBox.AbsoluteSize.X then
+            if UserInputService:GetMouseLocation().Y + GuiInset.Y >= CodeBox.AbsolutePosition.Y and UserInputService:GetMouseLocation().Y + GuiInset.Y <= CodeBox.AbsolutePosition.Y + CodeBox.AbsoluteSize.Y and UserInputService:GetMouseLocation().X >= CodeBox.AbsolutePosition.X and UserInputService:GetMouseLocation().X <= CodeBox.AbsolutePosition.X + CodeBox.AbsoluteSize.X then
                 return
             end
             TweenService:Create(CodeBox, TweenInfo.new(0.5), {Size = prevSize, Position = prevPos}):Play()
@@ -705,7 +706,7 @@ function mouseEntered()
         UserInputService.MouseIconEnabled = not mouseInGui
         customCursor.Visible = mouseInGui
         if mouseInGui and getgenv().SimpleSpyExecuted then
-            local mouseLocation = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
+            local mouseLocation = UserInputService:GetMouseLocation() - GuiInset
             customCursor.Position = UDim2.fromOffset(mouseLocation.X - customCursor.AbsoluteSize.X / 2, mouseLocation.Y - customCursor.AbsoluteSize.Y / 2)
             local inRange, type = isInResizeRange(mouseLocation)
             if inRange and not closed then
@@ -725,7 +726,7 @@ end
 
 --- Called when mouse moves
 function mouseMoved()
-    local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
+    local mousePos = UserInputService:GetMouseLocation() - GuiInset
     if not closed
     and mousePos.X >= TopBar.AbsolutePosition.X and mousePos.X <= TopBar.AbsolutePosition.X + TopBar.AbsoluteSize.X
     and mousePos.Y >= Background.AbsolutePosition.Y and mousePos.Y <= Background.AbsolutePosition.Y + Background.AbsoluteSize.Y then
@@ -787,7 +788,7 @@ end
 --- Called on user input while mouse in 'Background' frame
 --- @param input InputObject
 function backgroundUserInput(input)
-    local mousePos = UserInputService:GetMouseLocation() - Vector2.new(0, 36)
+    local mousePos = UserInputService:GetMouseLocation() - GuiInset
     local inResizeRange, type = isInResizeRange(mousePos)
     if input.UserInputType == Enum.UserInputType.MouseButton1 and inResizeRange then
         local lastPos = UserInputService:GetMouseLocation()
