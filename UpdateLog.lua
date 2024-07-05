@@ -1,4 +1,11 @@
-Well good news and bad news. Good news I have UI done bad news not the final ui but more so a rewrite ui.
-Rewrite ui will be temp and will basically function as a rewrite of this ui and a placeholder for the final product
-I'm doing this so I can finally start working on stuff again
-and not get burned out not seeing any progress
+Rewrite Progress:
+  Progress is going good.
+  I have finished the syntax highlighter 
+  (fixed a bug with having to serialize "<" due to it breaking richtext)
+  If you're interested here's a preview: https://youtu.be/CsLdVkpT29M
+
+Simple Spy Update:
+  also fixed an issue with simple spy due to the new roblox menu
+  the new menu changed the UI offset and the current simplespy source 
+  didn't automatically account for this
+  TLDR wally bothered me so I fixed an issue
