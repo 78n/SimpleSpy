@@ -1,3 +1,8 @@
+More progress:
+  I have finished the Serializer
+  I am now going to rewrite syntax highlighter
+  so that is faster (I wrote it in string interpolation which is very slow)
+
 Rewrite Progress:
   Progress is going good.
   I have finished the syntax highlighter 
