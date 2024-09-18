@@ -1,3 +1,11 @@
+Even more progress:
+I've taken a short break on coding to focus on other projects
+Im now doing this entire project as a pation project so theres no garentee
+that I'll even finish this
+but... I have finished the Seralizer
+up next is to finish the syntax highlighter (this will likely be the last time i rewrite it)
+progress isn't going too bad but dont expect much
+
 More progress:
   I have finished the Serializer
   I am now going to rewrite syntax highlighter
