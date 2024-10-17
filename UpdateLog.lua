@@ -1,3 +1,6 @@
+I've been rather busy lately but I've basically finished the syntax highlighter I just need to optimize it more
+other than that Im basically just waiting on electron
+
 Even more progress:
 I've taken a short break on coding to focus on other projects
 Im now doing this entire project as a pation project so theres no garentee
