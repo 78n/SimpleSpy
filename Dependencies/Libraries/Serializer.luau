@@ -662,7 +662,7 @@ do
                 local Serialized = {}
                 
                 for i,v in next, tbl do
-                    Serialized[CurrentIndex] = (CurrentIndex ~= i and ValidateIndex(i) or "")..Seralize(v, format, stackindent, CyclicList)
+                    Serialized[CurrentIndex] = (CurrentIndex ~= i and ValidateIndex(i) or "")..Serialize(v, format, stackindent, CyclicList)
                     CurrentIndex += 1
                 end
                 
