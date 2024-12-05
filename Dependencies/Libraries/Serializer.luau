@@ -1,5 +1,3 @@
--- Created by https://github.com/78n | License CC0 1.0 Universal
-
 --[[
 	The reason I don't use string interpolation is because it is very slow.
 	I'm already making this rather slow due to me using indexing vs 100 different elseif statements for the serialize function
@@ -30,6 +28,7 @@ local fromstring = buffer.fromstring
 local bufftostring = buffer.tostring
 local readu8 = buffer.readu8
 
+local isfrozen = table.isfrozen
 local concat = table.concat
 local info = debug.info
 
@@ -587,7 +586,7 @@ do
             return "RotationCurveKey.new("..SerializeNumber(Curve.Time)..", "..SerializeCFrame(Curve.Value)..", Enum.KeyInterpolationMode."..Curve.Interpolation.Name..")"
         end,
         SharedTable = function(Shared : SharedTable, format : boolean?, indents : string)
-            local IsFrozen = IsSharedFrozen(Shared)
+            local isreadonly = IsSharedFrozen(Shared)
             
             if SharedSize(Shared) ~= 0 then
                 local stackindent = indents..(format and "\t" or "")
@@ -602,9 +601,9 @@ do
                 local formatspace = format and "\n" or ""
                 local Contents = formatspace..stackindent..concat(Serialized, (format and ",\n" or ", ")..stackindent)..formatspace..indents
                 
-                return not IsFrozen and "SharedTable.new({"..Contents.."})" or "SharedTable.cloneAndFreeze(SharedTable.new({"..Contents.."}))"
+                return not isreadonly and "SharedTable.new({"..Contents.."})" or "SharedTable.cloneAndFreeze(SharedTable.new({"..Contents.."}))"
             end
-            return not IsFrozen and "SharedTable.new()" or "SharedTable.cloneAndFreeze(SharedTable.new())"
+            return not isreadonly and "SharedTable.new()" or "SharedTable.cloneAndFreeze(SharedTable.new())"
         end,
         TweenInfo = function(Info : TweenInfo)
             return "TweenInfo.new("..SerializeNumber(Info.Time)..", Enum.EasingStyle."..Info.EasingStyle.Name..", Enum.EasingDirection."..Info.EasingDirection.Name..", "..Info.RepeatCount..", "..(Info.Reverses and "true" or "false")..", "..SerializeNumber(Info.DelayTime)..")"
@@ -653,7 +652,9 @@ do
         end,
         number = SerializeNumber,
         string = SerializeString,
-        table = function(tbl, format : boolean?, indents : string, CyclicList) : string
+        table = function(tbl : {[any] : any}, format : boolean?, indents : string, CyclicList) : string
+            local isreadonly = isfrozen(tbl)
+            
             if next(tbl) ~= nil then
                 local CyclicList, Created = GetCyclicTables(tbl), CyclicList ~= nil or nil
                 local stackindent = indents..(format and "\t" or "")
@@ -661,15 +662,17 @@ do
                 local Serialized = {}
                 
                 for i,v in next, tbl do
-                    Serialized[CurrentIndex] = (CurrentIndex ~= i and ValidateIndex(i) or "")..Serialize(v, format, stackindent, CyclicList)
+                    Serialized[CurrentIndex] = (CurrentIndex ~= i and ValidateIndex(i) or "")..Seralize(v, format, stackindent, CyclicList)
                     CurrentIndex += 1
                 end
                 
                 local formatspace = format and "\n" or ""
-                return "{"..formatspace..stackindent..concat(Serialized, (format and ",\n" or ", ")..stackindent)..formatspace..indents.."}"
+                local Contents = formatspace..stackindent..concat(Serialized, (format and ",\n" or ", ")..stackindent)..formatspace..indents
+                
+                return not isreadonly and "{"..Contents.."}" or "table.freeze({"..Contents.."})"
             end
             
-            return "{}"
+            return not isreadonly and "{}" or "table.freeze({})"
         end,
         thread = function(thread : thread) -- planning on adding more to this
             return "coroutine.create(function() end)"
