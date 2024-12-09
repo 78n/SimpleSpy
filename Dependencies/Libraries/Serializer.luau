@@ -249,7 +249,6 @@ local Globals do
         [unpack] = "unpack",
         [xpcall] = "xpcall",
         [collectgarbage] = "collectgarbage",
-        [DebuggerManager] = "DebuggerManager",
         [delay] = "delay",
         [gcinfo] = "gcinfo",
         [PluginManager] = "PluginManager",
