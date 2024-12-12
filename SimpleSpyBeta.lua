@@ -1017,7 +1017,7 @@ function genScript(remote, args)
     local gen = ""
     if #args > 0 then
         xpcall(function()
-            gen = LazyFix.Serialize({args = args}, true) .. "\n"
+            gen = "local args = "..LazyFix.Serialize(args, true) .. "\n"
         end,function(err)
             gen ..= "-- An error has occured:\n--"..err.."\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
             xpcall(function()
