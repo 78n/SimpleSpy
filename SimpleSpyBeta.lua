@@ -1833,10 +1833,6 @@ local newInvokeServer = newcclosure(function(...)
     return newindex("InvokeServer",originalFunction,...)
 end)
 
-local newUnreliableInvokeServer = newcclosure(function(...)
-    return newindex("InvokeServer",originalUnreliableFunction,...)
-end)
-
 local function disablehooks()
     if synv3 then
         unhook(getrawmetatable(game).__namecall,originalnamecall)
