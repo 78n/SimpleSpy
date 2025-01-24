@@ -118,11 +118,11 @@ local SerializeClass = {
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer do
-    if not LocalPlayer then
-        Players:GetPropertyChangedSignal("LocalPlayer"):Once(function() -- Technically a "memory leak" but at this point if you really manage to join before your localplayer even exists you deserve it
-            Players = Players.LocalPlayer
-        end)
-    end
+	if not LocalPlayer then
+		Players:GetPropertyChangedSignal("LocalPlayer"):Once(function() -- Technically a "memory leak" but at this point if you really manage to join before your localplayer even exists you deserve it
+			Players = Players.LocalPlayer
+		end)
+	end
 end
 
 local SpecialCases = {
@@ -223,7 +223,7 @@ local GlobalFunctions = setmetatable({
 	[Wait] = "Wait"
 }, {
 	__call = function(self, Path : string, tbl : {[string] : any})
-		local Visited = {}
+		local Visited = setmetatable({}, {__mode = "k"})
 
 		local function LookUp(Path : string, tbl : {[string] : any})
 			if not Visited[tbl] then
@@ -233,10 +233,14 @@ local GlobalFunctions = setmetatable({
 					if type(i) == "string" and not Keywords[i] and not i:match("[a-Z_][a-Z_0-9]") then
 						local ValueType = type(v)
 
-						if ValueType == "function" then
-							self[v] = ValueType == "function" and Path.."."..i or nil
-						elseif ValueType == "table" then
-							LookUp(Path.."."..i, v)
+						if ValueType == "function" or ValueType == "table" then
+							local NewPath = Path.."."..i
+
+							if ValueType == "function" then
+								self[v] = NewPath
+							else
+								LookUp(NewPath, v)
+							end
 						end
 					end
 				end
@@ -251,7 +255,19 @@ for i,v in env do
 	GlobalFunctions(i, v)
 end
 
-local function Serialize(DataStructure : any, format : boolean?, indents : string, CyclicList : {[{[any] : any?}] : boolean})
+local function ExtractTypes<Type>(From : {[string] : Type?}, Path : string, DataType : string, Storage : {}?) : {[Type] : string}
+	local Storage = Storage or setmetatable({}, {__mode = "k"}) -- I dont technically need it but as I don't know what people are going to do with this code better safe than sorry
+
+	for i,v in next, From do
+		if typeof(v) == DataType and not Storage[v] and type(i) == "string" and not Keywords[i] and not i:match("[a-Z_][a-Z_0-9]") then
+			Storage[v] = Path.."."..i
+		end
+	end
+
+	return Storage
+end
+
+local function Serialize(DataStructure : any, format : boolean?, indents : string, CyclicList : typeof(setmetatable({}, {__mode = "k"}))?)
 	local DataHandler = Methods[typeof(DataStructure)]
 
 	return DataHandler and DataHandler(DataStructure, format, indents, CyclicList) or "nil --[[ Unsupported Data Type | "..typeof(DataStructure).." ]]"
@@ -311,8 +327,12 @@ local function SerializeInstance(obj : Instance)
 	return ObjectClassName == "DataModel" and "game" or "Instance.new(\""..ObjectClassName.."\", nil)"
 end
 
+local Vector3s = ExtractTypes(vector, "vector", "Vector3") do
+	ExtractTypes(Vector3, "Vector3", "Vector3", Vector3s)
+end
+
 local function SerializeVector3(Vector : Vector3)
-	return "Vector3.new("..SerializeNumber(Vector.X)..", "..SerializeNumber(Vector.Y)..", "..SerializeNumber(Vector.Z)..")"
+	return Vector3s[Vector] or "vector.create("..SerializeNumber(Vector.X)..", "..SerializeNumber(Vector.Y)..", "..SerializeNumber(Vector.Z)..")"
 end
 
 local function SerializeVector3int16(Vector : Vector3int16)
@@ -327,10 +347,18 @@ local function SerializeColor3(Color : Color3)
 	return "Color3.new("..SerializeNumber(Color.R)..", "..SerializeNumber(Color.G)..", "..SerializeNumber(Color.B)..")"
 end
 
-local function SerializeCFrame(CFrame : CFrame)
-	local x, y, z, R00, R01, R02, R10, R11, R12, R20, R21, R22 = CFrame:GetComponents()
+local CFrames = ExtractTypes(CFrame, "CFrame", "CFrame")
 
-	return "CFrame.new("..SerializeNumber(x)..", "..SerializeNumber(y)..", "..SerializeNumber(z)..", "..SerializeNumber(R00)..", "..SerializeNumber(R01)..", "..SerializeNumber(R02)..", "..SerializeNumber(R10)..", "..SerializeNumber(R11)..", "..SerializeNumber(R12)..", "..SerializeNumber(R20)..", "..SerializeNumber(R21)..", "..SerializeNumber(R22)..")"
+local function SerializeCFrame(CFrame : CFrame)
+	local Generation = CFrames[CFrame]
+
+	if not Generation then
+		local x, y, z, R00, R01, R02, R10, R11, R12, R20, R21, R22 = CFrame:GetComponents()
+
+		return "CFrame.new("..SerializeNumber(x)..", "..SerializeNumber(y)..", "..SerializeNumber(z)..", "..SerializeNumber(R00)..", "..SerializeNumber(R01)..", "..SerializeNumber(R02)..", "..SerializeNumber(R10)..", "..SerializeNumber(R11)..", "..SerializeNumber(R12)..", "..SerializeNumber(R20)..", "..SerializeNumber(R21)..", "..SerializeNumber(R22)..")"
+	end
+
+	return Generation
 end
 
 local function SerializeColorSequenceKeypoint(KeyPoint : ColorSequenceKeypoint)
@@ -341,7 +369,7 @@ local function SerializeNumberSequenceKeypoint(Keypoint : NumberSequenceKeypoint
 	return "NumberSequenceKeypoint.new("..SerializeNumber(Keypoint.Time)..", "..SerializeNumber(Keypoint.Value)..", "..SerializeNumber(Keypoint.Envelope)..")"
 end
 
-local function ValidateSharedTableIndex(Index : string | number)
+local function ValidateSharedTableIndex(Index : string)
 	local IsKeyword = type(Index) == "number" and Index or Keywords[Index]
 
 	if not IsKeyword then
@@ -432,8 +460,8 @@ end
 
 DefaultMethods.ColorSequenceKeypoint = SerializeColorSequenceKeypoint
 
-function DefaultMethods.Content(Content : Content)
-	local Uri = Content.Uri
+function DefaultMethods.Content(content : Content)
+	local Uri = content.Uri
 
 	return Uri and "Content.fromUri("..Uri..")" or "Content.none"
 end
@@ -617,9 +645,9 @@ DefaultMethods["function"] = function(Function : (...any?) -> ...any?, format : 
 	return IsGlobal
 end
 
-function DefaultMethods.table(tbl : {[any] : any}, format : boolean?, indents : string, CyclicList : {[{[any] : any?}] : boolean}) : string
-	CyclicList = CyclicList or setmetatable({}, {__mode = "k"})
-	
+function DefaultMethods.table(tbl : {[any] : any}, format : boolean?, indents : string, CyclicList : typeof(setmetatable({}, {__mode = "k"}))?) : string
+	local CyclicList = CyclicList or setmetatable({}, {__mode = "k"})
+
 	if not CyclicList[tbl] then
 		CyclicList[tbl] = true 
 		local isreadonly = isfrozen(tbl)
