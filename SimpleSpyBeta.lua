@@ -1225,7 +1225,10 @@ local typev2sfunctions = {
         end
         return `{vtypeof}({rawtostring(v)}) --[[Generation Failure]]`
     end,
-    vector = ufunctions["Vector3"]
+    vector = ufunctions["Vector3"],
+    buffer = function(v)
+        return `buffer.fromstring({formatstr(buffer.tostring(v))})`
+    end
 }
 
 
