@@ -749,7 +749,7 @@ DefaultMethods["nil"] = function()
 end
 
 function DefaultMethods.number(num : number)
-	return num ~= inf and num ~= neginf and num == num and num or num == inf and "math.huge" or num == neginf and "-math.huge" or "0/0"
+	return num ~= inf and num ~= neginf and num == num and tostring(num) or num == inf and "math.huge" or num == neginf and "-math.huge" or "0/0"
 end
 
 function DefaultMethods.string(RawString : string)
@@ -776,28 +776,48 @@ function DefaultMethods.string(RawString : string)
 	return "\""..SerializedString.."\""
 end
 
-function DefaultMethods.thread(thread : thread) -- planning on adding more to this
+function DefaultMethods.thread(thread : thread)
 	return "coroutine.create(function() end)"
 end
 
-function DefaultMethods.userdata(userdata : any) -- planning on adding more to this later
+function DefaultMethods.userdata(userdata : any)
 	return getmetatable(userdata) ~= nil and "newproxy(true)" or "newproxy(false)"
 end
 
 local function Serializevargs(... : any)
-	local generation = ""
-	local tbl = {...}
-	local arraysize = #tbl
+	local tbl = table.pack(...) -- Thank you https://github.com/sown0000 for pointing out that nils arent printed
+	local GenerationSize = 0
 
 	for i,v in tbl do
-		generation ..= Serialize(v, true, "")..(i ~= arraysize and " " or "")
+		local Generation = Serialize(v, true, "")
+		tbl[i] = Generation
+		GenerationSize += #Generation
 
-		if #generation > 100000 then -- output functions will trim the output
+		if GenerationSize > 100000 then -- output functions will trim the generation
 			break
 		end
 	end
 
-	return generation
+	return unpack(tbl, 1, tbl.n)
+end
+
+-- Safe parallel
+function SerializeClass.SetGlobalFunctions(env : {[any] : any})
+	assert(type(env) == "table", "table expected, got "..typeof(env))
+	table.clear(GlobalFunctions)
+
+	for i,v in next, env do
+		GlobalFunctions(i, v)
+	end
+end
+
+-- Safe parallel
+function SerializeClass.AppendGlobalFunctions(env : {[any] : any})
+	assert(type(env) == "table", "table expected, got "..typeof(env))
+
+	for i,v in next, env do
+		GlobalFunctions(i, v)
+	end
 end
 
 -- Safe Parallel
@@ -820,8 +840,10 @@ function SerializeClass.SerializeKnown(DataType : string, DataStructure : any?, 
 	warn(DataType, "was not found as a method")
 end
 
+-- Safe parallel
 SerializeClass.Serialize = SerializeClass.Advanced.Serialize
 
+-- Safe parallel
 function SerializeClass.print(... : any?)
 	print(Serializevargs(...))
 end
@@ -859,15 +881,11 @@ function SerializeClass:output(data : any?, format : boolean?)
 end
 
 -- Safe Parallel
-function SerializeClass.OverrideMethod(Method : string, NewMethod : (DataStructure : any, format : boolean?, indents : string, CyclicList : {[{[any] : any?}] : boolean}) -> string)
-	if DefaultMethods[Method] then
-		if type(NewMethod) == "function" then
-			Methods[Method] = NewMethod
-		else
-			warn(NewMethod, "is not a function", debug.traceback())
-		end
+function SerializeClass:OverrideMethod(Method : string, NewMethod : (DataStructure : any, format : boolean?, indents : string, CyclicList : {[{[any] : any?}] : boolean}) -> string)
+	if type(NewMethod) == "function" then
+		Methods[Method] = NewMethod
 	else
-		warn(Method, "is not valid Method", debug.traceback())
+		self.RemoveMethod(Method)
 	end
 end
 
