@@ -1,1 +1,1 @@
-Currently waiting on electron/awp so I can start testing the final builds
+I am currently implimenting plua support will update more as progress continues
