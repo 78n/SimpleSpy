@@ -122,7 +122,7 @@ local function IsCyclicTable(tbl)
     local function SearchTable(tbl)
         table.insert(checkedtables,tbl)
         
-        for i,v in tbl do
+        for i,v in pairs(tbl) do
             if type(v) == "table" then
                 return table.find(checkedtables,v) and true or SearchTable(v)
             end
