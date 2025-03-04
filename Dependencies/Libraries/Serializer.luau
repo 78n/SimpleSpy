@@ -124,6 +124,7 @@ local LocalPlayer
 -- If you are paranoid: (You don't even need to do this because it is impossible for the LocalPlayer to be nil)
 repeat
 	LocalPlayer = Players.LocalPlayer
+	task.wait()
 until
 	LocalPlayer
 
