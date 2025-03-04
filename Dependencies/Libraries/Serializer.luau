@@ -102,7 +102,7 @@ local FindService = game.FindService
 local info = debug.info
 
 local inf = math.huge
-local neginf = -inf
+-- local neginf = -inf ???
 
 local IsStudio = game:GetService("RunService"):IsStudio()
 
@@ -119,13 +119,13 @@ local SerializeClass = setmetatable({}, {
 })
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer do
-	if not LocalPlayer then
-		Players:GetPropertyChangedSignal("LocalPlayer"):Once(function() -- Technically a "memory leak" but at this point if you really manage to join before your localplayer even exists you deserve it
-			Players = Players.LocalPlayer
-		end)
-	end
-end
+local LocalPlayer
+
+-- If you are paranoid: (You don't even need to do this because it is impossible for the LocalPlayer to be nil)
+repeat
+	LocalPlayer = Players.LocalPlayer
+until
+	LocalPlayer
 
 local SpecialCases = {
 	[7] = "\\a",
@@ -172,10 +172,9 @@ local ReadableCharacters = table.create(94) do
 	ReadableCharacters[34], ReadableCharacters[92] = "\\\"", "\\\\"
 end
 
-local Enums = {} do
-	for i,v in Enum:GetEnums() do
-		Enums[v] = "Enum."..tostring(v)
-	end
+local Enums = {}
+for i,v in Enum:GetEnums() do
+	Enums[v] = "Enum."..tostring(v)
 end
 
 local GlobalFunctions = setmetatable({
@@ -280,7 +279,7 @@ local function islclosure(Function : (...any?) -> (...any?))
 end
 
 local function nanToString(int : number)
-	return int == int and int or "0/0"
+	return int -- int == int and int or "0/0" -- ???
 end
 
 local function ValidateSharedTableIndex(Index : string)
@@ -352,9 +351,9 @@ end
 
 function DefaultMethods.Axes(Axes : Axes)
 	return "Axes.new("..concat({
-		Axes.X and "Enum.Axis.X" or nil,
-		Axes.Y and "Enum.Axis.Y" or nil,
-		Axes.Z and "Enum.Axis.Z" or nil
+		Axes.X and "Enum.Axis.X",
+		Axes.Y and "Enum.Axis.Y",
+		Axes.Z and "Enum.Axis.Z",
 	},", ")..")"
 end
 
@@ -454,12 +453,12 @@ end
 
 function DefaultMethods.Faces(Faces : Faces)
 	return "Faces.new("..concat({
-		Faces.Top and "Enum.NormalId.Top" or nil,
-		Faces.Bottom and "Enum.NormalId.Bottom" or nil,
-		Faces.Left and "Enum.NormalId.Left" or nil,
-		Faces.Right and "Enum.NormalId.Right" or nil,
-		Faces.Back and "Enum.NormalId.Back" or nil,
-		Faces.Front and "Enum.NormalId.Front" or nil,
+		Faces.Top and "Enum.NormalId.Top",
+		Faces.Bottom and "Enum.NormalId.Bottom",
+		Faces.Left and "Enum.NormalId.Left",
+		Faces.Right and "Enum.NormalId.Right",
+		Faces.Back and "Enum.NormalId.Back",
+		Faces.Front and "Enum.NormalId.Front",
 	}, ", ")..")"
 end
 
@@ -749,7 +748,7 @@ DefaultMethods["nil"] = function()
 end
 
 function DefaultMethods.number(num : number)
-	return num ~= inf and num ~= neginf and num == num and tostring(num) or num == inf and "math.huge" or num == neginf and "-math.huge" or "0/0"
+	return num ~= inf and num ~= -inf and num == num and tostring(num) or num == inf and "math.huge" or num == -inf and "-math.huge" or "0/0"
 end
 
 function DefaultMethods.string(RawString : string)
