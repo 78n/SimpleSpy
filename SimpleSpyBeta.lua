@@ -148,6 +148,11 @@ local function deepclone(args: table, copies: table): table
         end
     elseif typeof(args) == "Instance" then
         copy = cloneref(args)
+    elseif typeof(args) == "userdata" then
+        if getrawmetatable(args) ~= nil then
+            setrawmetatable(args,{})
+        end
+        copy = args
     else
         copy = args
     end
