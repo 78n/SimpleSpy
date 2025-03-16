@@ -1873,9 +1873,9 @@ function toggleSpy()
             originalFunction = hookfunction(Instance.new("RemoteFunction").InvokeServer, clonefunction(newInvokeServer))
             originalUnreliableEvent = hookfunction(Instance.new("UnreliableRemoteEvent").FireServer, clonefunction(newUnreliableFireServer))
         end
-        originalnamecall = originalnamecall or function(...)
+        originalnamecall = newcclosure(originalnamecall or function(...)
             return oldnamecall(...)
-        end
+        end)
     else
         disablehooks()
     end
