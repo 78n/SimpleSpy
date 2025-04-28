@@ -1408,7 +1408,7 @@ function i2p(i,customgen)
     elseif parent ~= game then
         while true do
             if parent and parent.Parent == game then
-                if SafeGetService(parent.ClassName) then
+                if game:FindService(parent.ClassName) then  -- You arent getting clout off of this
                     if lower(parent.ClassName) == "workspace" then
                         return `workspace{out}`
                     else
