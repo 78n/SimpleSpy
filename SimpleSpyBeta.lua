@@ -221,7 +221,7 @@ function ErrorPrompt(Message,state)
 end
 
 local Highlight = (isfile and loadfile and isfile("Highlight.lua") and loadfile("Highlight.lua")()) or loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/Highlight.lua"))()
-local LazyFix = loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/refs/heads/main/Dependencies/Libraries/Serializer.luau"))() -- Very lazy fix as I'm legit just pasting it from the rewrite
+local LazyFix = loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/Roblox/refs/heads/main/Lua/Libraries/DataToCode/DataToCode.luau"))() -- Very lazy fix as I'm legit just pasting it from the rewrite
 
 local SimpleSpy3 = Create("ScreenGui",{ResetOnSpawn = false})
 local Storage = Create("Folder",{})
@@ -1020,7 +1020,7 @@ function genScript(remote, args)
     local gen = ""
     if #args > 0 then
         xpcall(function()
-            gen = "local args = "..LazyFix.Serialize(args, true) .. "\n"
+            gen = "local args = "..LazyFix.Convert(args, true) .. "\n"
         end,function(err)
             gen ..= "-- An error has occured:\n--"..err.."\n-- TableToString failure! Reverting to legacy functionality (results may vary)\nlocal args = {"
             xpcall(function()
@@ -1053,15 +1053,15 @@ function genScript(remote, args)
             gen = "function getNil(name,class) for _,v in next, getnilinstances()do if v.ClassName==class and v.Name==name then return v;end end end\n\n" .. gen
         end
         if remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent") then
-            gen ..= LazyFix.SerializeKnown("Instance", remote) .. ":FireServer(unpack(args))"
+            gen ..= LazyFix.ConvertKnown("Instance", remote) .. ":FireServer(unpack(args))"
         elseif remote:IsA("RemoteFunction") then
-            gen = gen .. LazyFix.SerializeKnown("Instance", remote) .. ":InvokeServer(unpack(args))"
+            gen = gen .. LazyFix.ConvertKnown("Instance", remote) .. ":InvokeServer(unpack(args))"
         end
     else
         if remote:IsA("RemoteEvent") or remote:IsA("UnreliableRemoteEvent") then
-            gen ..= LazyFix.SerializeKnown("Instance", remote) .. ":FireServer()"
+            gen ..= LazyFix.ConvertKnown("Instance", remote) .. ":FireServer()"
         elseif remote:IsA("RemoteFunction") then
-            gen ..= LazyFix.SerializeKnown("Instance", remote) .. ":InvokeServer()"
+            gen ..= LazyFix.ConvertKnown("Instance", remote) .. ":InvokeServer()"
         end
     end
     prevTables = {}
