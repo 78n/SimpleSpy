@@ -4,6 +4,9 @@ SimpleSpy V3 is a penetration testing tool designed to intercept [remote calls](
 
 SimpleSpy V3 is designed to be the "default" remote spy and built with minimal bloat, performance, and reliability in mind. You can find SimpleSpy V3 in places such as [Infinite Yield](https://github.com/EdgeIY/infiniteyield)
 
+## Status
+SimpleSpy V3 is discontinued as I no longer have moved onto new projects and no longer exploit. I will attempt to keep the legacy code from breaking but other than that unless I get some miraculous motivation to make it for studio or something this is discontinued indefinitely. Thank you for all the support over the years.
+
 ## Features
 - View remotes fired
 - Functioninfo spy
